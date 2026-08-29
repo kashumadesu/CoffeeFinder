@@ -15,8 +15,8 @@ import {
   Alert,
   Dimensions,
   Platform,
-  FlatList,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -98,20 +98,21 @@ export const DetailScreen: React.FC = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Photo carousel */}
         {photos.length > 0 ? (
-          <FlatList
+          <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            data={photos}
-            keyExtractor={(p) => p.photoReference}
-            renderItem={({ item }) => (
+            style={styles.photoList}
+          >
+            {photos.map((item) => (
               <Image
+                key={item.photoReference}
                 source={{ uri: getPhotoUrl(item.photoReference, 800) }}
                 style={styles.photo}
               />
-            )}
-            style={styles.photoList}
-          />
+            ))}
+          </ScrollView>
+
         ) : (
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoPlaceholderIcon}>☕</Text>

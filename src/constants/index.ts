@@ -2,9 +2,10 @@
 // App Constants
 // ============================================================
 
-// Replace with your actual key from Google Cloud Console
-// https://console.cloud.google.com/apis/credentials
-export const GOOGLE_PLACES_API_KEY = 'YOUR_GOOGLE_PLACES_API_KEY_HERE';
+// API key is loaded from .env — never hardcode keys in source!
+import { GOOGLE_MAPS_API_KEY } from '@env';
+export const GOOGLE_PLACES_API_KEY = GOOGLE_MAPS_API_KEY;
+
 
 export const GOOGLE_PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place';
 export const GOOGLE_DIRECTIONS_BASE_URL = 'https://maps.googleapis.com/maps/api/directions';
@@ -81,8 +82,6 @@ export const RATING_OPTIONS = [
   { label: '4.5+', value: 4.5 },
 ];
 
-// Re-export formatting utility so components can use @constants/index
-export { formatDistance } from '@services/googlePlaces';
 
 // Price level map
 export const PRICE_LABELS: Record<number, string> = {

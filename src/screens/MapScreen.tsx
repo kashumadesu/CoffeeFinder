@@ -3,7 +3,8 @@
 //             + filter bar + draggable bottom sheet list
 // ============================================================
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+
 import {
   View,
   Text,
@@ -50,8 +51,9 @@ export const MapScreen: React.FC = () => {
   const { errorMsg: locationError } = useLocation();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  // Bottom sheet snap points
-  const snapPoints = ['18%', '50%', '88%'];
+  // Bottom sheet snap points — must be memoized to avoid re-renders
+  const snapPoints = useMemo(() => ['18%', '50%', '88%'], []);
+
 
   // Animate map to user location once available
   useEffect(() => {

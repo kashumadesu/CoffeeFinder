@@ -10,7 +10,9 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, getPhotoUrl, formatDistance, PRICE_LABELS } from '@constants';
+import { COLORS, SPACING, RADIUS, getPhotoUrl, PRICE_LABELS } from '@constants';
+import { formatDistance } from '@services/googlePlaces';
+
 import { RatingStars } from './RatingStars';
 import type { CoffeeShop } from '@types';
 
