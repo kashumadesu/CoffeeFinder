@@ -29,10 +29,12 @@ import { SearchBar } from '@components/SearchBar';
 import { FilterBar } from '@components/FilterBar';
 import { RegionSelector } from '@components/RegionSelector';
 import { RoutePolyline } from '@components/RoutePolyline';
+import { NavigationAssistant } from '@components/NavigationAssistant';
 import { ShopCard } from '@components/ShopCard';
 import { RatingStars } from '@components/RatingStars';
 import { formatDistance } from '@services/googlePlaces';
-import type { CoffeeShop, RootStackParamList, MapTypeOption } from '@types';
+import { fetchDirectionsRoute } from '@services/directions';
+import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute } from '@types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -41,11 +43,10 @@ export const MapScreen: React.FC = () => {
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const lastFetchRef = useRef<{ latitude: number; longitude: number } | null>(null);
-  const hasFramedRouteRef = useRef(false);
 
   const [layersModalVisible, setLayersModalVisible] = useState(false);
-  // Real Directions API route info (duration + distance from Google, not math estimates)
-  const [routeInfo, setRouteInfo] = useState<{ durationSecs: number; distanceMetres: number } | null>(null);
+  // Real Directions API route + turn-by-turn steps
+  const [navigationRoute, setNavigationRoute] = useState<NavigationRoute | null>(null);
 
   // Store
   const shops = useStore((s) => s.shops);
@@ -92,27 +93,14 @@ export const MapScreen: React.FC = () => {
     }
   }, [userLocation, activeNavigationShop, selectedShop]);
 
-  // Frame route on start or focus on selected shop
+  // Instant route calculation & turn-by-turn generation on navigation start
   useEffect(() => {
-    if (activeNavigationShop && userLocation && mapRef.current) {
-      if (!hasFramedRouteRef.current) {
-        hasFramedRouteRef.current = true;
-        mapRef.current.fitToCoordinates([userLocation, activeNavigationShop.location], {
-          edgePadding: {
-            top: Platform.OS === 'ios' ? 190 : 150,
-            right: 50,
-            bottom: 180,
-            left: 50,
-          },
-          animated: true,
-        });
-      }
-    } else {
-      hasFramedRouteRef.current = false;
+    if (!activeNavigationShop) {
+      setNavigationRoute(null);
       if (selectedShop && mapRef.current) {
         mapRef.current.animateToRegion(
           {
-            latitude: selectedShop.location.latitude - 0.003, // slight offset to leave room for preview card
+            latitude: selectedShop.location.latitude - 0.003,
             longitude: selectedShop.location.longitude,
             latitudeDelta: DELTA.small,
             longitudeDelta: DELTA.small,
@@ -120,8 +108,35 @@ export const MapScreen: React.FC = () => {
           450,
         );
       }
+      return;
     }
-  }, [selectedShop, activeNavigationShop]);
+
+    const origin = userLocation || DEFAULT_REGION;
+    let isCancelled = false;
+
+    const loadLiveRoute = async () => {
+      const route = await fetchDirectionsRoute(origin, activeNavigationShop.location, navigationMode);
+      if (!isCancelled) {
+        setNavigationRoute(route);
+        if (mapRef.current) {
+          mapRef.current.fitToCoordinates([origin, activeNavigationShop.location], {
+            edgePadding: {
+              top: Platform.OS === 'ios' ? 180 : 140,
+              right: 60,
+              bottom: 160,
+              left: 60,
+            },
+            animated: true,
+          });
+        }
+      }
+    };
+
+    loadLiveRoute();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeNavigationShop?.id, navigationMode, userLocation?.latitude, userLocation?.longitude, selectedShop]);
 
   // When search query produces results, snap bottom sheet up and smoothly center on top match
   useEffect(() => {
@@ -247,127 +262,46 @@ export const MapScreen: React.FC = () => {
         {/* Render Road-Following Route Polyline during navigation */}
         {activeNavigationShop && (
           <RoutePolyline
-            origin={userLocation}
-            destination={activeNavigationShop.location}
+            coordinates={navigationRoute?.coordinates || []}
             mode={navigationMode}
-            onRouteReady={(info) => setRouteInfo(info)}
           />
         )}
 
         {renderedMarkers}
       </MapView>
 
-      {/* Floating Minimalist Header (Search + Hub Switcher + Filters) */}
-      <View style={styles.headerOverlay}>
-        <View style={styles.topRow}>
-          <View style={styles.searchWrapper}>
-            <SearchBar onAvatarPress={() => (nav as any).navigate('Profile')} />
+      {/* Floating Minimalist Header (Search + Hub Switcher + Filters) — Hidden during active navigation */}
+      {!activeNavigationShop && (
+        <View style={styles.headerOverlay}>
+          <View style={styles.topRow}>
+            <View style={styles.searchWrapper}>
+              <SearchBar onAvatarPress={() => (nav as any).navigate('Profile')} />
+            </View>
+          </View>
+
+          <View style={styles.subFilterRow}>
+            <RegionSelector />
+            <View style={styles.filterScrollWrapper}>
+              <FilterBar />
+            </View>
           </View>
         </View>
+      )}
 
-        <View style={styles.subFilterRow}>
-          <RegionSelector />
-          <View style={styles.filterScrollWrapper}>
-            <FilterBar />
-          </View>
-        </View>
-      </View>
-
-      {/* In-App Navigation Turn-by-Turn HUD Banner */}
+      {/* Google Maps-Style Turn-by-Turn Navigation Assistant */}
       {activeNavigationShop && (
-        <View style={styles.navHudCard}>
-          <View style={styles.navHudLeft}>
-            <View style={styles.navIconCircle}>
-              <Feather
-                name={navigationMode === 'walking' ? 'navigation' : 'compass'}
-                size={18}
-                color="#FFFFFF"
-              />
-            </View>
-            <View style={styles.navHudTextCol}>
-              <Text style={styles.navHudTitle} numberOfLines={1}>
-                {activeNavigationShop.name}
-              </Text>
-              <View style={styles.navHudEtaRow}>
-                <Feather name="clock" size={11} color={COLORS.textSecondary} />
-                <Text style={styles.navHudEta}>
-                  {routeInfo
-                    ? `${Math.max(1, Math.round(routeInfo.durationSecs / 60))} min ${navigationMode === 'walking' ? 'walk' : 'drive'} • ${formatDistance(routeInfo.distanceMetres)}`
-                    : `Calculating route…`}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Mode Switcher + Actions */}
-          <View style={styles.navHudRightCol}>
-            <View style={styles.modeToggleGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.modePill,
-                  navigationMode === 'walking' && styles.modePillActive,
-                ]}
-                onPress={() => {
-                  hapticSelection();
-                  setNavigationMode('walking');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modePillText,
-                    navigationMode === 'walking' && styles.modePillTextActive,
-                  ]}
-                >
-                  Walk
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modePill,
-                  navigationMode === 'driving' && styles.modePillActive,
-                ]}
-                onPress={() => {
-                  hapticSelection();
-                  setNavigationMode('driving');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modePillText,
-                    navigationMode === 'driving' && styles.modePillTextActive,
-                  ]}
-                >
-                  Drive
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.navHudActions}>
-              <TouchableOpacity
-                style={styles.navRecenterBtn}
-                onPress={handleRecenterRoute}
-                activeOpacity={0.8}
-              >
-                <Feather name="crosshair" size={13} color={COLORS.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.navDetailBtn}
-                onPress={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
-                activeOpacity={0.8}
-              >
-                <Feather name="info" size={13} color={COLORS.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.navEndBtn}
-                onPress={() => { stopNavigation(); setRouteInfo(null); }}
-                activeOpacity={0.8}
-              >
-                <Feather name="x" size={12} color={COLORS.danger} />
-                <Text style={styles.navEndText}>End</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <NavigationAssistant
+          shop={activeNavigationShop}
+          route={navigationRoute}
+          navigationMode={navigationMode}
+          onModeChange={(mode) => setNavigationMode(mode)}
+          onEndNavigation={() => {
+            stopNavigation();
+            setNavigationRoute(null);
+          }}
+          onRecenter={handleRecenterRoute}
+          onViewShopDetail={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
+        />
       )}
 
       {/* Offline Mode Indicator Pill */}

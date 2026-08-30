@@ -189,3 +189,23 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ShopDetail: { shop: CoffeeShop };
 };
+
+export interface NavigationStep {
+  id: string;
+  instruction: string;
+  distanceText: string;
+  distanceMeters: number;
+  durationText: string;
+  maneuver: string;
+  startLocation: Location;
+  endLocation: Location;
+}
+
+export interface NavigationRoute {
+  coordinates: Location[];
+  distanceMeters: number;
+  durationSeconds: number;
+  distanceText: string;
+  durationText: string;
+  steps: NavigationStep[];
+}
