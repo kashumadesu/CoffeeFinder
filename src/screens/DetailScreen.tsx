@@ -13,6 +13,7 @@ import {
   Alert,
   Platform,
   Modal,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, PRICE_LABELS } from '@constants';
 import { getPlaceDetails, formatDistance } from '@services/googlePlaces';
 import { useFavorites } from '@hooks/useFavorites';
+import { hapticLight, hapticSuccess, hapticSelection } from '@utils/haptics';
 import { useStore } from '@store/useStore';
 import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
@@ -89,6 +91,28 @@ export const DetailScreen: React.FC = () => {
     (nav as any).navigate('OwnerPortal');
   };
 
+  const handleFavoritePress = () => {
+    toggleFavorite(shop);
+    hapticSuccess();
+  };
+
+  const handleShareShop = async () => {
+    try {
+      const minPrice = shop.priceRange?.min ?? 140;
+      const maxPrice = shop.priceRange?.max ?? 240;
+      const signature = shop.menuHighlights?.[0]?.name
+        ? `Signature: ${shop.menuHighlights[0].name}. `
+        : '';
+      const vibe = shop.vibeTags?.length ? `Vibe: ${shop.vibeTags.join(', ')}. ` : '';
+      const message = `Check out this specialty coffee spot on Coffee Finder PH: ${shop.name} in ${shop.vicinity}! Price: ₱${minPrice}–₱${maxPrice}/cup. ${signature}${vibe}https://coffeefinder.ph/shop/${shop.id}`;
+      hapticLight();
+      await Share.share({
+        title: `Coffee Finder PH: ${shop.name}`,
+        message,
+      });
+    } catch {}
+  };
+
   const distanceText = shop.distance ? ` (${formatDistance(shop.distance)})` : '';
 
   return (
@@ -105,17 +129,26 @@ export const DetailScreen: React.FC = () => {
         <Text style={styles.topTitle} numberOfLines={1}>
           {shop.name}
         </Text>
-        <TouchableOpacity
-          style={styles.favoriteCircleBtn}
-          onPress={() => toggleFavorite(shop)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Feather
-            name="heart"
-            size={20}
-            color={favorited ? COLORS.danger : COLORS.border}
-          />
-        </TouchableOpacity>
+        <View style={styles.topActionsRow}>
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={handleShareShop}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="share-2" size={19} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.favoriteCircleBtn}
+            onPress={handleFavoritePress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather
+              name="heart"
+              size={19}
+              color={favorited ? COLORS.danger : COLORS.border}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -271,17 +304,25 @@ export const DetailScreen: React.FC = () => {
                 onPress={handleDirections}
                 activeOpacity={0.8}
               >
-                <Feather name="map" size={20} color={COLORS.primary} />
+                <Feather name="map" size={19} color={COLORS.primary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareActionBtn}
+                onPress={handleShareShop}
+                activeOpacity={0.8}
+              >
+                <Feather name="share-2" size={19} color={COLORS.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.heartBtn}
-                onPress={() => toggleFavorite(shop)}
+                onPress={handleFavoritePress}
                 activeOpacity={0.8}
               >
                 <Feather
                   name="heart"
-                  size={20}
+                  size={19}
                   color={favorited ? COLORS.danger : COLORS.border}
                 />
               </TouchableOpacity>
@@ -468,6 +509,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.textPrimary,
+  },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   favoriteCircleBtn: {
     width: 36,
@@ -681,6 +737,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   externalMapsBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  shareActionBtn: {
     width: 46,
     height: 46,
     borderRadius: 23,

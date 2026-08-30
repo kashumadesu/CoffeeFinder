@@ -18,6 +18,7 @@ import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { Feather } from '@expo/vector-icons';
+import { hapticLight, hapticSelection } from '@utils/haptics';
 
 import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA, getPhotoUrl } from '@constants';
 import { useStore } from '@store/useStore';
@@ -152,6 +153,7 @@ export const MapScreen: React.FC = () => {
   );
 
   const handleMyLocation = () => {
+    hapticLight();
     if (userLocation && mapRef.current) {
       mapRef.current.animateToRegion(
         { ...userLocation, latitudeDelta: DELTA.medium, longitudeDelta: DELTA.medium },
@@ -258,7 +260,10 @@ export const MapScreen: React.FC = () => {
                   styles.modePill,
                   navigationMode === 'walking' && styles.modePillActive,
                 ]}
-                onPress={() => setNavigationMode('walking')}
+                onPress={() => {
+                  hapticSelection();
+                  setNavigationMode('walking');
+                }}
               >
                 <Text
                   style={[
@@ -274,7 +279,10 @@ export const MapScreen: React.FC = () => {
                   styles.modePill,
                   navigationMode === 'driving' && styles.modePillActive,
                 ]}
-                onPress={() => setNavigationMode('driving')}
+                onPress={() => {
+                  hapticSelection();
+                  setNavigationMode('driving');
+                }}
               >
                 <Text
                   style={[

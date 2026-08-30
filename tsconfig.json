@@ -28,6 +28,8 @@
       "@types/*": ["types/*"],
       "@constants": ["constants"],
       "@constants/*": ["constants/*"],
+      "@utils": ["utils"],
+      "@utils/*": ["utils/*"],
       "@env": ["types/env.d.ts"]
     }
   },

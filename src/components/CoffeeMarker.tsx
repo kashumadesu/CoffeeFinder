@@ -6,6 +6,7 @@ import React, { memo, useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
+import { hapticLight } from '@utils/haptics';
 import type { CoffeeShop } from '@types';
 
 interface Props {
@@ -31,6 +32,7 @@ const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) =
       coordinate={shop.location}
       onPress={(e) => {
         e.stopPropagation();
+        hapticLight();
         onPress(shop);
       }}
       tracksViewChanges={tracksViewChanges}

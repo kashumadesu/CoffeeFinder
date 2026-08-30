@@ -12,11 +12,16 @@ import {
   StyleSheet,
   Alert,
   Modal,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
+import { uploadPermitPhoto } from '@services/firebase';
+import { hapticSuccess, hapticMedium, hapticWarning } from '@utils/haptics';
 import type {
   LiveSeatingStatus,
   OwnerVerificationStatus,
@@ -112,6 +117,9 @@ export const OwnerPortalScreen: React.FC = () => {
   const [dtiOrSecNumber, setDtiOrSecNumber] = useState('');
   const [permitType, setPermitType] =
     useState<OwnerClaimRequest['permitType']>('DTI Registration');
+  const [permitLocalPhotoUri, setPermitLocalPhotoUri] = useState<string | null>(null);
+  const [isUploadingPermit, setIsUploadingPermit] = useState(false);
+  const [previewModalImageUri, setPreviewModalImageUri] = useState<string | null>(null);
 
   // Verified Owner Dashboard State
   const [currentPlan, setCurrentPlan] = useState<PlanTier>('free');
@@ -125,8 +133,41 @@ export const OwnerPortalScreen: React.FC = () => {
 
   const activeShop = shops.find((s) => s.id === selectedShopId) ?? shops[0];
 
-  // Submit Claim to Admin Review with duplicate lock
-  const handleSubmitClaim = () => {
+  const handlePickPermitFromGallery = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission Denied', 'Please grant photo library access to attach your business permit.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (!res.canceled && res.assets && res.assets.length > 0) {
+      setPermitLocalPhotoUri(res.assets[0].uri);
+      hapticMedium();
+    }
+  };
+
+  const handleTakePermitPhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission Denied', 'Please grant camera access to photograph your business permit.');
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (!res.canceled && res.assets && res.assets.length > 0) {
+      setPermitLocalPhotoUri(res.assets[0].uri);
+      hapticMedium();
+    }
+  };
+
+  // Submit Claim to Admin Review with duplicate lock and cloud storage
+  const handleSubmitClaim = async () => {
     if (claimMode === 'claim') {
       if (isShopClaimed(selectedShopId)) {
         Alert.alert(
@@ -150,7 +191,17 @@ export const OwnerPortalScreen: React.FC = () => {
       return;
     }
 
+    const claimId = `claim-${Date.now()}`;
     const targetName = claimMode === 'claim' ? activeShop?.name : newCafeName;
+
+    setIsUploadingPermit(true);
+    let finalPhotoUrl = permitLocalPhotoUri;
+    if (permitLocalPhotoUri) {
+      try {
+        finalPhotoUrl = await uploadPermitPhoto(permitLocalPhotoUri, claimId);
+      } catch {}
+    }
+    setIsUploadingPermit(false);
 
     submitClaim({
       shopId: claimMode === 'claim' ? selectedShopId : `new-cafe-${Date.now()}`,
@@ -160,24 +211,29 @@ export const OwnerPortalScreen: React.FC = () => {
       phoneNumber,
       dtiOrSecNumber,
       permitType,
+      permitPhotoUri: finalPhotoUrl || undefined,
     });
 
+    hapticSuccess();
     setClaimModalVisible(false);
+    setPermitLocalPhotoUri(null);
     setVerificationStatus('pending');
     Alert.alert(
       'Verification Submitted',
-      'Your claim has been submitted to Admin & Customer Service. We will verify your permit details within 24-48 business hours.',
+      'Your claim and document have been uploaded to Admin & Customer Service. We will verify your permit details within 24-48 business hours.',
     );
   };
 
   const handleAdminApprove = (claimId: string, shopName: string) => {
     approveClaim(claimId);
     setVerificationStatus('verified');
+    hapticSuccess();
     Alert.alert('Claim Approved', `Ownership credentials for "${shopName}" have been verified. Verified Owner dashboard is now unlocked.`);
   };
 
   const handleAdminReject = (claimId: string, shopName: string) => {
     rejectClaim(claimId, 'Permit documentation did not match local city registry records.');
+    hapticWarning();
     Alert.alert('Claim Rejected', `Rejected claim for "${shopName}". Owner notified via email.`);
   };
 
@@ -738,6 +794,25 @@ export const OwnerPortalScreen: React.FC = () => {
                       </View>
                     </View>
 
+                    {/* Attached Permit Document Photo Preview */}
+                    {claim.permitPhotoUri && (
+                      <TouchableOpacity
+                        style={styles.adminPermitPreviewRow}
+                        onPress={() => setPreviewModalImageUri(claim.permitPhotoUri!)}
+                        activeOpacity={0.8}
+                      >
+                        <Image
+                          source={{ uri: claim.permitPhotoUri }}
+                          style={styles.adminPermitThumbnail}
+                        />
+                        <View style={styles.adminPermitTextCol}>
+                          <Text style={styles.adminPermitTitle}>Attached Business Permit</Text>
+                          <Text style={styles.adminPermitSub}>Tap to inspect full resolution document ›</Text>
+                        </View>
+                        <Feather name="maximize-2" size={15} color={COLORS.primary} />
+                      </TouchableOpacity>
+                    )}
+
                     {/* Action Row for Admin */}
                     {isPending && (
                       <View style={styles.adminActionRow}>
@@ -903,22 +978,61 @@ export const OwnerPortalScreen: React.FC = () => {
                 onChangeText={setDtiOrSecNumber}
               />
 
-              {/* Document Upload Button */}
-              <TouchableOpacity
-                style={styles.docUploadBox}
-                onPress={() => Alert.alert('Permit Attached', 'Business permit document photo attached.')}
-                activeOpacity={0.8}
-              >
-                <Feather name="file-text" size={20} color={COLORS.primary} />
-                <Text style={styles.docUploadText}>Attach DTI or Mayor Permit Photo</Text>
-              </TouchableOpacity>
+              {/* Document Photo Upload (Camera / Gallery) */}
+              <Text style={styles.fieldLabel}>Business Registration Document Photo</Text>
+              {permitLocalPhotoUri ? (
+                <View style={styles.permitPreviewContainer}>
+                  <Image source={{ uri: permitLocalPhotoUri }} style={styles.permitImagePreview} />
+                  <View style={styles.permitPreviewActions}>
+                    <TouchableOpacity
+                      style={styles.changePhotoBtn}
+                      onPress={handleTakePermitPhoto}
+                    >
+                      <Feather name="camera" size={13} color={COLORS.primary} />
+                      <Text style={styles.changePhotoText}>Retake Photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.changePhotoBtn}
+                      onPress={handlePickPermitFromGallery}
+                    >
+                      <Feather name="image" size={13} color={COLORS.primary} />
+                      <Text style={styles.changePhotoText}>Choose Gallery</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.photoPickerRow}>
+                  <TouchableOpacity
+                    style={styles.photoPickerBtn}
+                    onPress={handleTakePermitPhoto}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="camera" size={18} color={COLORS.primary} />
+                    <Text style={styles.photoPickerText}>Take Photo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.photoPickerBtn}
+                    onPress={handlePickPermitFromGallery}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="image" size={18} color={COLORS.primary} />
+                    <Text style={styles.photoPickerText}>Choose Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={styles.submitClaimBtn}
                 onPress={handleSubmitClaim}
+                disabled={isUploadingPermit}
                 activeOpacity={0.88}
               >
-                <Text style={styles.submitClaimBtnText}>Submit for Admin Verification</Text>
+                {isUploadingPermit ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitClaimBtnText}>Submit for Admin Verification</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1000,6 +1114,30 @@ export const OwnerPortalScreen: React.FC = () => {
               </Text>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* Full Document Inspector Modal */}
+      <Modal
+        visible={!!previewModalImageUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewModalImageUri(null)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerCloseBtn}
+            onPress={() => setPreviewModalImageUri(null)}
+          >
+            <Feather name="x" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          {previewModalImageUri && (
+            <Image
+              source={{ uri: previewModalImageUri }}
+              style={styles.fullInspectionImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -1882,5 +2020,112 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  adminPermitPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSage,
+    padding: 8,
+    borderRadius: RADIUS.sm,
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  adminPermitThumbnail: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+  },
+  adminPermitTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  adminPermitTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  adminPermitSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  permitPreviewContainer: {
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    marginVertical: SPACING.xs,
+    backgroundColor: COLORS.background,
+  },
+  permitImagePreview: {
+    width: '100%',
+    height: 160,
+    resizeMode: 'cover',
+  },
+  permitPreviewActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 8,
+    gap: 8,
+    backgroundColor: COLORS.surface,
+  },
+  changePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSage,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    gap: 4,
+  },
+  changePhotoText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  photoPickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: SPACING.xs,
+  },
+  photoPickerBtn: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceSage,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryLight,
+    borderStyle: 'dashed',
+    gap: 4,
+  },
+  photoPickerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  imageViewerCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  fullInspectionImage: {
+    width: '100%',
+    height: '80%',
   },
 });

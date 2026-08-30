@@ -20,13 +20,11 @@ export default {
       bundleIdentifier: 'com.yourcompany.coffeefinder',
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
-          'Coffee Finder needs your location to discover nearby specialty cafés in the Philippines.',
-        NSLocationAlwaysUsageDescription:
-          'Coffee Finder needs your location to discover nearby specialty cafés.',
+          'Coffee Finder uses your location to discover nearby specialty coffee shops in the Philippines and provide road navigation.',
         NSCameraUsageDescription:
-          'Coffee Finder uses your camera to let you take photos of your coffee pour-over and latte art.',
+          'Coffee Finder uses your camera to photograph DTI and Mayor business permits for owner verification and share coffee tasting notes.',
         NSPhotoLibraryUsageDescription:
-          'Coffee Finder uses your photo library to attach photos to your community tasting reviews.',
+          'Coffee Finder accesses your photo library to upload business permits for verification and café tasting photos.',
       },
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -63,9 +61,9 @@ export default {
         'expo-image-picker',
         {
           photosPermission:
-            'Allow Coffee Finder to access your photos to attach coffee tasting review pictures.',
+            'Allow Coffee Finder to access your photos to upload business permits and coffee tasting pictures.',
           cameraPermission:
-            'Allow Coffee Finder to access your camera to take photos of your brew.',
+            'Allow Coffee Finder to access your camera to photograph business permits for owner verification and latte art.',
         },
       ],
     ],

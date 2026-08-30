@@ -44,6 +44,15 @@ export const ProfileScreen: React.FC = () => {
   const [authPassword, setAuthPassword] = useState('');
   const [userName, setUserName] = useState('Specialty Coffee Lover');
 
+  // Legal & Privacy Reader State
+  const [legalModalVisible, setLegalModalVisible] = useState(false);
+  const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms'>('privacy');
+
+  const handleOpenLegal = (type: 'privacy' | 'terms') => {
+    setLegalModalType(type);
+    setLegalModalVisible(true);
+  };
+
   useEffect(() => {
     const unsub = subscribeToAuthChanges((u) => {
       setCurrentUser(u);
@@ -298,6 +307,43 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.perkText}>GCash / QRPh Cashless Payments</Text>
           </View>
         </View>
+
+        {/* Legal & Privacy Section (App Store & DPA Compliance) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderLeft}>
+            <Feather name="file-text" size={16} color={COLORS.primary} />
+            <Text style={styles.cardTitle}>Legal & Privacy</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.legalRow}
+            onPress={() => handleOpenLegal('privacy')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.legalLeft}>
+              <Feather name="shield" size={14} color={COLORS.primary} />
+              <Text style={styles.legalText}>Privacy Policy</Text>
+            </View>
+            <Feather name="chevron-right" size={14} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.legalRow}
+            onPress={() => handleOpenLegal('terms')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.legalLeft}>
+              <Feather name="book-open" size={14} color={COLORS.primary} />
+              <Text style={styles.legalText}>Terms of Service</Text>
+            </View>
+            <Feather name="chevron-right" size={14} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.versionRow}>
+            <Text style={styles.versionLabel}>App Version</Text>
+            <Text style={styles.versionValue}>v2.0.0 (Build 54 - PH Specialty)</Text>
+          </View>
+        </View>
       </ScrollView>
 
       {/* Social Login / Firebase Auth Modal */}
@@ -385,6 +431,107 @@ export const ProfileScreen: React.FC = () => {
             >
               <Text style={styles.emailSubmitText}>Sign In / Register</Text>
             </TouchableOpacity>
+
+            {/* Legal Agreement Disclaimer */}
+            <View style={styles.legalDisclaimerRow}>
+              <Text style={styles.legalDisclaimerText}>
+                By continuing, you agree to Coffee Finder's{' '}
+                <Text
+                  style={styles.legalLink}
+                  onPress={() => {
+                    setAuthModalVisible(false);
+                    handleOpenLegal('terms');
+                  }}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.legalLink}
+                  onPress={() => {
+                    setAuthModalVisible(false);
+                    handleOpenLegal('privacy');
+                  }}
+                >
+                  Privacy Policy
+                </Text>.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Legal & Privacy Reader Modal */}
+      <Modal
+        visible={legalModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLegalModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.legalModalCard}>
+            <View style={styles.legalModalHeader}>
+              <View style={styles.legalHeaderTitleCol}>
+                <Text style={styles.legalModalTitle}>
+                  {legalModalType === 'privacy' ? 'Privacy Policy' : 'Terms of Service'}
+                </Text>
+                <Text style={styles.legalModalSub}>
+                  Philippine Data Privacy Act (RA 10173) & Store Compliance
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setLegalModalVisible(false)}>
+                <Feather name="x" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.legalScroll}>
+              {legalModalType === 'privacy' ? (
+                <View style={styles.legalContentBox}>
+                  <Text style={styles.legalHeading}>1. Information We Collect</Text>
+                  <Text style={styles.legalParagraph}>
+                    • Location Data: Accessed with your explicit permission solely to locate nearby specialty cafés, calculate distance, and render road navigation. We do not track your location in the background when the app is closed.
+                  </Text>
+                  <Text style={styles.legalParagraph}>
+                    • Account Information: Managed via Firebase Authentication (Email/Password, Apple ID, Google) to sync your coffee passport stamps and saved favorites.
+                  </Text>
+                  <Text style={styles.legalParagraph}>
+                    • Business Permits: DTI registration certificates and Mayor's permits submitted by café owners are processed exclusively to verify ownership and prevent fraudulent claims. Document photos are stored securely and never published to the general public.
+                  </Text>
+
+                  <Text style={styles.legalHeading}>2. Philippine Data Privacy Act Compliance</Text>
+                  <Text style={styles.legalParagraph}>
+                    Under Republic Act No. 10173, you have the right to request access, correction, or complete deletion of your profile data at any time by contacting privacy@coffeefinder.ph.
+                  </Text>
+
+                  <Text style={styles.legalHeading}>3. Payment Processing</Text>
+                  <Text style={styles.legalParagraph}>
+                    SaaS subscriptions are processed through PayMongo (regulated by the Bangko Sentral ng Pilipinas). Coffee Finder does not store credit card credentials or GCash MPINs.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.legalContentBox}>
+                  <Text style={styles.legalHeading}>1. Acceptance of Terms</Text>
+                  <Text style={styles.legalParagraph}>
+                    By using Coffee Finder, you agree to comply with these terms. If you do not agree, please discontinue using the service.
+                  </Text>
+
+                  <Text style={styles.legalHeading}>2. Café Owner Verification</Text>
+                  <Text style={styles.legalParagraph}>
+                    Only authorized owners or managers may claim listings. Submitting forged or unauthorized DTI / Mayor's permits will result in immediate termination of the account.
+                  </Text>
+
+                  <Text style={styles.legalHeading}>3. Community Guidelines</Text>
+                  <Text style={styles.legalParagraph}>
+                    Tasting notes, barista recipes, and ratings must be authentic reflections of your coffee experience. Defamatory content or spam is strictly prohibited.
+                  </Text>
+
+                  <Text style={styles.legalHeading}>4. SaaS Subscriptions</Text>
+                  <Text style={styles.legalParagraph}>
+                    Starter and Pro owner plans renew monthly. You may cancel at any time prior to the billing cycle renewal via PayMongo or your account settings.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -773,5 +920,101 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  legalLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legalText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  versionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  versionLabel: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+  },
+  versionValue: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  legalDisclaimerRow: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  legalDisclaimerText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  legalLink: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  legalModalCard: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    maxHeight: '85%',
+    gap: SPACING.sm,
+  },
+  legalModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  legalHeaderTitleCol: {
+    flex: 1,
+  },
+  legalModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  legalModalSub: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  legalScroll: {
+    marginTop: 6,
+    paddingBottom: 20,
+  },
+  legalContentBox: {
+    gap: 8,
+    paddingBottom: 30,
+  },
+  legalHeading: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginTop: 8,
+  },
+  legalParagraph: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    lineHeight: 18,
   },
 });
