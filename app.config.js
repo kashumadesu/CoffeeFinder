@@ -9,7 +9,6 @@ export default {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    newArchEnabled: false,
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
