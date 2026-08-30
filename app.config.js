@@ -69,10 +69,6 @@ export default {
         },
       ],
     ],
-    extra: {
-      eas: {
-        projectId: 'YOUR_EAS_PROJECT_ID',
-      },
-    },
+    extra: {},
   },
 };
