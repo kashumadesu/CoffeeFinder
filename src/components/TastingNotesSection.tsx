@@ -1,5 +1,5 @@
 // ============================================================
-// TastingNotesSection — With Camera & Gallery Photo Uploads
+// TastingNotesSection — With Camera & Gallery Photo Uploads (Vector Icons)
 // ============================================================
 
 import React, { useState } from 'react';
@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, FLAVOR_TAGS } from '@constants';
 import { useStore } from '@store/useStore';
 import type { CoffeeShop, TastingNote } from '@types';
@@ -79,7 +80,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
       shopId: shop.id,
       author: authorName.trim().length > 0 ? authorName : 'Coffee Lover',
       rating,
-      notes: selectedFlavors.length > 0 ? selectedFlavors : ['☕ Specialty Roast'],
+      notes: selectedFlavors.length > 0 ? selectedFlavors : ['Specialty Roast'],
       brewMethod,
       comment,
       photoUri: photoUri ?? undefined,
@@ -89,7 +90,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
     setComment('');
     setSelectedFlavors([]);
     setPhotoUri(null);
-    Alert.alert('Tasting Note Added! ☕', 'Your review and photo are now live for the community.');
+    Alert.alert('Tasting Note Added', 'Your review and photo are now live for the community.');
   };
 
   return (
@@ -98,7 +99,10 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
       {recipe && (
         <View style={styles.recipeCard}>
           <View style={styles.recipeHeader}>
-            <Text style={styles.recipeBadge}>☕ Barista Recipe</Text>
+            <View style={styles.recipeBadgeContainer}>
+              <Feather name="coffee" size={12} color="#6E4822" />
+              <Text style={styles.recipeBadge}>Barista Recipe</Text>
+            </View>
             <Text style={styles.beanOrigin}>{recipe.beanOrigin}</Text>
           </View>
 
@@ -126,7 +130,10 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
       {/* Header + Add Review Button */}
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={styles.sectionTitle}>🌸 Community Tasting Notes</Text>
+          <View style={styles.titleWithIcon}>
+            <Feather name="message-square" size={16} color={COLORS.primary} />
+            <Text style={styles.sectionTitle}>Community Tasting Notes</Text>
+          </View>
           <Text style={styles.sectionSubtitle}>
             {allNotes.length} verified community flavor notes
           </Text>
@@ -136,7 +143,8 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
           onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Text style={styles.addNoteText}>+ Add Note</Text>
+          <Feather name="plus" size={13} color="#FFFFFF" />
+          <Text style={styles.addNoteText}>Add Note</Text>
         </TouchableOpacity>
       </View>
 
@@ -151,7 +159,11 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
                   <Text style={styles.noteBrewMethod}>{note.brewMethod}</Text>
                 )}
               </View>
-              <Text style={styles.noteStars}>{'⭐'.repeat(note.rating)}</Text>
+              <View style={styles.starRow}>
+                {Array.from({ length: note.rating }).map((_, i) => (
+                  <Feather key={i} name="star" size={12} color={COLORS.star} />
+                ))}
+              </View>
             </View>
 
             {/* Flavor chips */}
@@ -207,9 +219,11 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
                     onPress={() => setRating(st)}
                     style={styles.starTouch}
                   >
-                    <Text style={[styles.starPickIcon, rating >= st && styles.starPickActive]}>
-                      ★
-                    </Text>
+                    <Feather
+                      name="star"
+                      size={24}
+                      color={rating >= st ? COLORS.star : '#D8D2C7'}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -244,7 +258,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
               />
 
               {/* Photo Upload Attachment */}
-              <Text style={styles.fieldLabel}>📸 Attach Brew / Latte Art Photo</Text>
+              <Text style={styles.fieldLabel}>Attach Brew / Latte Art Photo</Text>
               {photoUri ? (
                 <View style={styles.photoPreviewBox}>
                   <Image source={{ uri: photoUri }} style={styles.photoThumb} />
@@ -252,7 +266,8 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
                     style={styles.removePhotoBtn}
                     onPress={() => setPhotoUri(null)}
                   >
-                    <Text style={styles.removePhotoText}>✕ Remove</Text>
+                    <Feather name="x" size={12} color={COLORS.danger} />
+                    <Text style={styles.removePhotoText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -261,7 +276,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
                   onPress={handlePickImage}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.photoPickerIcon}>📷</Text>
+                  <Feather name="camera" size={16} color={COLORS.primary} />
                   <Text style={styles.photoPickerText}>Choose Photo from Gallery</Text>
                 </TouchableOpacity>
               )}
@@ -327,14 +342,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  recipeBadge: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#6E4822',
+  recipeBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#F1E4CE',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: RADIUS.full,
+  },
+  recipeBadge: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6E4822',
   },
   beanOrigin: {
     fontSize: 12,
@@ -372,6 +392,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
@@ -380,12 +405,16 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    marginTop: 2,
   },
   addNoteBtn: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   addNoteText: {
     color: '#FFFFFF',
@@ -415,8 +444,9 @@ const styles = StyleSheet.create({
     color: COLORS.primaryLight,
     fontWeight: '600',
   },
-  noteStars: {
-    fontSize: 11,
+  starRow: {
+    flexDirection: 'row',
+    gap: 2,
   },
   flavorsRow: {
     flexDirection: 'row',
@@ -501,18 +531,11 @@ const styles = StyleSheet.create({
   },
   starPicker: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
     marginBottom: 4,
   },
   starTouch: {
     padding: 4,
-  },
-  starPickIcon: {
-    fontSize: 26,
-    color: '#D8D2C7',
-  },
-  starPickActive: {
-    color: COLORS.star,
   },
   flavorPicker: {
     flexDirection: 'row',
@@ -553,9 +576,6 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
-  photoPickerIcon: {
-    fontSize: 16,
-  },
   photoPickerText: {
     fontSize: 13,
     fontWeight: '700',
@@ -577,6 +597,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   removePhotoText: {
     fontSize: 11.5,

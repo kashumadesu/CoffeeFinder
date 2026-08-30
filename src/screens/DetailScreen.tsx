@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Feather } from '@expo/vector-icons';
 
 import { COLORS, SPACING, RADIUS, PRICE_LABELS } from '@constants';
 import { getPlaceDetails, formatDistance } from '@services/googlePlaces';
@@ -26,6 +27,7 @@ import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
 import { TastingNotesSection } from '@components/TastingNotesSection';
 import type { CoffeeShop, RootStackParamList } from '@types';
+
 
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
 type Nav = StackNavigationProp<RootStackParamList, 'ShopDetail'>;
@@ -96,7 +98,7 @@ export const DetailScreen: React.FC = () => {
           onPress={() => nav.goBack()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <Feather name="chevron-left" size={26} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.topTitle} numberOfLines={1}>
           {shop.name}
@@ -106,7 +108,11 @@ export const DetailScreen: React.FC = () => {
           onPress={() => toggleFavorite(shop)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.favoriteIcon}>{favorited ? '❤️' : '🤍'}</Text>
+          <Feather
+            name="heart"
+            size={20}
+            color={favorited ? COLORS.danger : COLORS.border}
+          />
         </TouchableOpacity>
       </View>
 
@@ -130,7 +136,7 @@ export const DetailScreen: React.FC = () => {
               <Text style={styles.titleText}>{shop.name}</Text>
               {shop.isVerified && (
                 <View style={styles.verifiedBadge}>
-                  <Text style={styles.verifiedCheck}>✓</Text>
+                  <Feather name="check-circle" size={14} color={COLORS.verified} />
                 </View>
               )}
             </View>
@@ -171,10 +177,14 @@ export const DetailScreen: React.FC = () => {
               )}
             </View>
 
-            {/* Live Amenities Box (Soft Green Container matching mockup) */}
+            {/* Live Amenities Box */}
             <View style={styles.amenitiesContainer}>
               <View style={styles.amenityRow}>
-                <Text style={styles.statusDot}>🟢</Text>
+                <Feather
+                  name="check-circle"
+                  size={14}
+                  color={COLORS.success}
+                />
                 <Text style={styles.amenityLabel}>Live Status: </Text>
                 <Text style={styles.amenityValue}>
                   {shop.seatingStatus === 'available'
@@ -186,7 +196,7 @@ export const DetailScreen: React.FC = () => {
               </View>
 
               <View style={styles.amenityRow}>
-                <Text style={styles.amenityIcon}>📶</Text>
+                <Feather name="wifi" size={14} color={COLORS.textMuted} />
                 <Text style={styles.amenityLabel}>Wi-Fi: </Text>
                 <Text style={styles.amenityValue}>
                   {shop.wifiSpeed ?? 'Fast (200 Mbps+ verified)'}
@@ -194,21 +204,22 @@ export const DetailScreen: React.FC = () => {
               </View>
 
               <View style={styles.amenityRow}>
-                <Text style={styles.amenityIcon}>⚡</Text>
+                <Feather name="zap" size={14} color={COLORS.textMuted} />
                 <Text style={styles.amenityLabel}>Outlets: </Text>
                 <Text style={styles.amenityValue}>Available at most tables</Text>
               </View>
             </View>
 
-            {/* Action Row: In-App Route & Native Directions */}
+            {/* Action Row */}
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={styles.directionsBtn}
                 onPress={handleInAppRoute}
                 activeOpacity={0.88}
               >
+                <Feather name="navigation" size={15} color="#fff" />
                 <Text style={styles.directionsBtnText}>
-                  Navigate In-App 🧭{distanceText}
+                  Navigate In-App{distanceText}
                 </Text>
               </TouchableOpacity>
 
@@ -217,7 +228,7 @@ export const DetailScreen: React.FC = () => {
                 onPress={handleDirections}
                 activeOpacity={0.8}
               >
-                <Text style={styles.externalMapsIcon}>🗺</Text>
+                <Feather name="map" size={20} color={COLORS.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -225,14 +236,18 @@ export const DetailScreen: React.FC = () => {
                 onPress={() => toggleFavorite(shop)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.heartBtnIcon}>{favorited ? '❤️' : '🤍'}</Text>
+                <Feather
+                  name="heart"
+                  size={20}
+                  color={favorited ? COLORS.danger : COLORS.border}
+                />
               </TouchableOpacity>
             </View>
 
             {/* Address & Contacts */}
             <View style={styles.contactDetails}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>🏠</Text>
+                <Feather name="map-pin" size={14} color={COLORS.textMuted} />
                 <Text style={styles.infoText}>
                   {shop.formattedAddress ?? shop.vicinity}
                 </Text>
@@ -240,7 +255,7 @@ export const DetailScreen: React.FC = () => {
 
               {shop.phoneNumber && (
                 <TouchableOpacity style={styles.infoRow} onPress={handleCall}>
-                  <Text style={styles.infoIcon}>📞</Text>
+                  <Feather name="phone" size={14} color={COLORS.textMuted} />
                   <Text style={[styles.infoText, styles.linkText]}>
                     {shop.phoneNumber}
                   </Text>
@@ -249,7 +264,7 @@ export const DetailScreen: React.FC = () => {
 
               {shop.website && (
                 <TouchableOpacity style={styles.infoRow} onPress={handleWebsite}>
-                  <Text style={styles.infoIcon}>🌐</Text>
+                  <Feather name="globe" size={14} color={COLORS.textMuted} />
                   <Text style={[styles.infoText, styles.linkText]}>
                     {shop.website}
                   </Text>
@@ -262,8 +277,13 @@ export const DetailScreen: React.FC = () => {
                     style={styles.hoursToggleRow}
                     onPress={() => setHoursExpanded(!hoursExpanded)}
                   >
-                    <Text style={styles.hoursTitle}>🕐 Opening Hours</Text>
-                    <Text style={styles.hoursArrow}>{hoursExpanded ? '▲' : '▼'}</Text>
+                    <Feather name="clock" size={14} color={COLORS.textMuted} />
+                    <Text style={styles.hoursTitle}>Opening Hours</Text>
+                    <Feather
+                      name={hoursExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={COLORS.textSecondary}
+                    />
                   </TouchableOpacity>
                   {hoursExpanded &&
                     shop.openingHours.weekdayText.map((line, idx) => (
@@ -280,22 +300,22 @@ export const DetailScreen: React.FC = () => {
         {/* Community Tasting Notes & Barista Brew Recipes Section */}
         <TastingNotesSection shop={shop} />
 
-        {/* Shop Owner SaaS Promo Banner */}
+        {/* Owner Portal SaaS Promo Banner */}
         <TouchableOpacity
           style={styles.ownerBanner}
           onPress={handleOwnerPortal}
           activeOpacity={0.88}
         >
           <View style={styles.ownerIconBox}>
-            <Text style={styles.ownerIcon}>📣</Text>
+            <Feather name="briefcase" size={20} color={COLORS.primary} />
           </View>
           <View style={styles.ownerTextContent}>
-            <Text style={styles.ownerTitle}>Shop Owner? (SaaS)</Text>
+            <Text style={styles.ownerTitle}>Shop Owner? Claim Your Listing</Text>
             <Text style={styles.ownerSubtitle}>
-              Manage your live status and loyalty stamps in the Owner Portal.
+              Manage live status, analytics, and loyalty stamps in the Owner Portal.
             </Text>
           </View>
-          <Text style={styles.ownerArrow}>›</Text>
+          <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -436,6 +456,7 @@ const styles = StyleSheet.create({
   amenityRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   statusDot: {
     fontSize: 10,
@@ -468,6 +489,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.1,
@@ -536,13 +559,15 @@ const styles = StyleSheet.create({
   },
   hoursToggleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 4,
   },
   hoursTitle: {
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.textPrimary,
+    flex: 1,
   },
   hoursArrow: {
     fontSize: 11,

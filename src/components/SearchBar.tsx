@@ -1,9 +1,10 @@
 // ============================================================
-// SearchBar Component — Matching Mockup Header
+// SearchBar — Clean vector icon search bar
 // ============================================================
 
 import React from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 
@@ -19,6 +20,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
     <View style={styles.container}>
       {/* Search Input Capsule */}
       <View style={styles.inputWrapper}>
+        <Feather name="search" size={15} color={COLORS.textMuted} style={styles.searchPrefixIcon} />
         <TextInput
           style={styles.input}
           placeholder="Find WFC friendly, pour-over, or underrated spots..."
@@ -28,9 +30,6 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
           returnKeyType="search"
           clearButtonMode="while-editing"
         />
-        <TouchableOpacity style={styles.searchIconBtn} activeOpacity={0.8}>
-          <Text style={styles.searchIcon}>🔍</Text>
-        </TouchableOpacity>
       </View>
 
       {/* User Avatar Circle */}
@@ -40,7 +39,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
         activeOpacity={0.8}
       >
         <View style={styles.avatarInner}>
-          <Text style={styles.avatarEmoji}>👨🏻‍💼</Text>
+          <Feather name="user" size={20} color={COLORS.textSecondary} />
         </View>
       </TouchableOpacity>
     </View>
@@ -61,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
-    paddingLeft: SPACING.md,
+    paddingLeft: SPACING.sm,
     paddingRight: 6,
     height: 52,
     borderWidth: 1.5,
@@ -71,6 +70,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
+    gap: SPACING.sm,
+  },
+  searchPrefixIcon: {
+    marginLeft: 4,
   },
   input: {
     flex: 1,
@@ -78,17 +81,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     paddingVertical: 0,
     fontWeight: '400',
-  },
-  searchIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.md,
-    backgroundColor: '#F1E9DE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchIcon: {
-    fontSize: 15,
   },
   avatarBtn: {
     elevation: 2,
@@ -105,8 +97,5 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarEmoji: {
-    fontSize: 22,
   },
 });

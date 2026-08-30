@@ -1,9 +1,10 @@
 // ============================================================
-// ShopCard — Specialty Café Preview Card
+// ShopCard — Specialty Café Preview Card (Icons, no emojis)
 // ============================================================
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, getPhotoUrl, PRICE_LABELS } from '@constants';
 import { formatDistance } from '@services/googlePlaces';
 import { RatingStars } from './RatingStars';
@@ -40,7 +41,7 @@ export const ShopCard: React.FC<Props> = ({
           <Image source={{ uri: photoUrl }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderIcon}>☕</Text>
+            <Feather name="coffee" size={28} color={COLORS.textMuted} />
           </View>
         )}
         {shop.openNow !== undefined && (
@@ -57,16 +58,23 @@ export const ShopCard: React.FC<Props> = ({
           <Text style={styles.name} numberOfLines={1}>
             {shop.name}
           </Text>
-          {shop.isVerified && <Text style={styles.verifiedIcon}>✓</Text>}
+          {shop.isVerified && (
+            <View style={styles.verifiedBadge}>
+              <Feather name="check-circle" size={12} color={COLORS.verified} />
+            </View>
+          )}
           {shop.priceLevel !== undefined && (
             <Text style={styles.price}>{PRICE_LABELS[shop.priceLevel]}</Text>
           )}
         </View>
 
         {/* Address */}
-        <Text style={styles.address} numberOfLines={1}>
-          {shop.vicinity}
-        </Text>
+        <View style={styles.addressRow}>
+          <Feather name="map-pin" size={11} color={COLORS.textMuted} />
+          <Text style={styles.address} numberOfLines={1}>
+            {shop.vicinity}
+          </Text>
+        </View>
 
         {/* Rating + Distance */}
         <View style={styles.metaRow}>
@@ -79,7 +87,10 @@ export const ShopCard: React.FC<Props> = ({
             />
           )}
           {shop.distance !== undefined && (
-            <Text style={styles.distance}>• {formatDistance(shop.distance)}</Text>
+            <View style={styles.distanceRow}>
+              <Feather name="navigation" size={11} color={COLORS.textMuted} />
+              <Text style={styles.distance}>{formatDistance(shop.distance)}</Text>
+            </View>
           )}
         </View>
 
@@ -89,10 +100,7 @@ export const ShopCard: React.FC<Props> = ({
             {shop.vibeTags.slice(0, 2).map((tag, idx) => (
               <View
                 key={tag}
-                style={[
-                  styles.tagPill,
-                  idx === 0 ? styles.tagGreen : styles.tagBrown,
-                ]}
+                style={[styles.tagPill, idx === 0 ? styles.tagGreen : styles.tagBrown]}
               >
                 <Text
                   style={[
@@ -115,9 +123,11 @@ export const ShopCard: React.FC<Props> = ({
           onPress={() => onFavoritePress(shop)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={[styles.heartIcon, isFavorite && styles.heartIconActive]}>
-            {isFavorite ? '❤️' : '🤍'}
-          </Text>
+          <Feather
+            name={isFavorite ? 'heart' : 'heart'}
+            size={20}
+            color={isFavorite ? COLORS.danger : COLORS.border}
+          />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -161,7 +171,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imagePlaceholderIcon: { fontSize: 32 },
   badge: {
     position: 'absolute',
     top: 5,
@@ -177,7 +186,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: SPACING.sm + 2,
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
   },
   nameRow: {
     flexDirection: 'row',
@@ -190,14 +199,10 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     flexShrink: 1,
   },
-  verifiedIcon: {
-    color: '#27AE60',
-    fontSize: 12,
-    fontWeight: '900',
+  verifiedBadge: {
     backgroundColor: '#E8F6ED',
     borderRadius: 8,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
+    padding: 2,
   },
   price: {
     fontSize: 12,
@@ -205,15 +210,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 2,
   },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   address: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    flexShrink: 1,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     marginTop: 1,
+  },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   distance: {
     fontSize: 11.5,
@@ -230,26 +246,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  tagGreen: {
-    backgroundColor: COLORS.tagGreenBg,
-  },
-  tagBrown: {
-    backgroundColor: COLORS.tagBrownBg,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  tagGreenText: {
-    color: COLORS.tagGreen,
-  },
-  tagBrownText: {
-    color: COLORS.tagBrown,
-  },
+  tagGreen: { backgroundColor: COLORS.tagGreenBg },
+  tagBrown: { backgroundColor: COLORS.tagBrownBg },
+  tagText: { fontSize: 10, fontWeight: '600' },
+  tagGreenText: { color: COLORS.tagGreen },
+  tagBrownText: { color: COLORS.tagBrown },
   favoriteBtn: {
     justifyContent: 'center',
     paddingRight: 6,
   },
-  heartIcon: { fontSize: 18 },
-  heartIconActive: {},
 });

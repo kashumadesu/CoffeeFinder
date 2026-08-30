@@ -1,9 +1,10 @@
 // ============================================================
-// FilterBar Component — Specialty Filter Chips (Matching Mockup)
+// FilterBar — Icon-based Specialty Filter Chips
 // ============================================================
 
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SPECIALTY_CATEGORIES } from '@constants';
 import { useStore } from '@store/useStore';
 import type { CategoryFilter } from '@types';
@@ -36,6 +37,12 @@ export const FilterBar: React.FC = () => {
               onPress={() => handlePress(cat.id)}
               activeOpacity={0.8}
             >
+              <Feather
+                name={cat.icon as any}
+                size={13}
+                color={isActive ? COLORS.surface : COLORS.textSecondary}
+                style={styles.chipIcon}
+              />
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                 {cat.label}
               </Text>
@@ -58,12 +65,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.full,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderWidth: 1.2,
     borderColor: COLORS.border,
+    gap: 5,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -73,6 +83,9 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+  },
+  chipIcon: {
+    marginTop: 0.5,
   },
   chipText: {
     fontSize: 13,

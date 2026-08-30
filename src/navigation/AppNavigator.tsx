@@ -1,12 +1,13 @@
 // ============================================================
-// AppNavigator — 4-Tab Bottom Navigation (Matching Mockup)
+// AppNavigator — 4-Tab Bottom Navigation with Vector Icons
 // ============================================================
 
 import React from 'react';
-import { Text, Platform, View, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Feather } from '@expo/vector-icons';
 
 import { COLORS } from '@constants';
 import { MapScreen } from '@screens/MapScreen';
@@ -19,32 +20,23 @@ import type { RootTabParamList, RootStackParamList } from '@types';
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createStackNavigator<RootStackParamList>();
 
-// ---- Tab Icons matching mockup bottom bar ----
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, { icon: string; label: string }> = {
-    Discover: { icon: '🌿', label: 'Discover' },
-    Saved: { icon: '🔖', label: 'Saved' },
-    OwnerPortal: { icon: '🏪', label: 'Owner Portal' },
-    Profile: { icon: '👤', label: 'Profile' },
-  };
+type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
-  const item = icons[name] ?? { icon: '☕', label: name };
+const TAB_ICONS: Record<string, FeatherIconName> = {
+  Discover: 'map',
+  Saved: 'bookmark',
+  OwnerPortal: 'briefcase',
+  Profile: 'user',
+};
 
-  return (
-    <View style={styles.tabIconWrapper}>
-      <Text style={[styles.tabEmoji, focused && styles.tabEmojiActive]}>
-        {item.icon}
-      </Text>
-    </View>
-  );
-}
-
-// ---- Main 4-Tab Bar ----
 const MainTabs: React.FC = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+      tabBarIcon: ({ focused, color, size }) => {
+        const iconName = TAB_ICONS[route.name] ?? 'coffee';
+        return <Feather name={iconName} size={22} color={color} />;
+      },
       tabBarActiveTintColor: COLORS.primary,
       tabBarInactiveTintColor: '#9B9690',
       tabBarStyle: {
@@ -66,30 +58,13 @@ const MainTabs: React.FC = () => (
       },
     })}
   >
-    <Tab.Screen
-      name="Discover"
-      component={MapScreen}
-      options={{ title: 'Discover' }}
-    />
-    <Tab.Screen
-      name="Saved"
-      component={FavoritesScreen}
-      options={{ title: 'Saved' }}
-    />
-    <Tab.Screen
-      name="OwnerPortal"
-      component={OwnerPortalScreen}
-      options={{ title: 'Owner Portal' }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={ProfileScreen}
-      options={{ title: 'Profile' }}
-    />
+    <Tab.Screen name="Discover" component={MapScreen} options={{ title: 'Discover' }} />
+    <Tab.Screen name="Saved" component={FavoritesScreen} options={{ title: 'Saved' }} />
+    <Tab.Screen name="OwnerPortal" component={OwnerPortalScreen} options={{ title: 'Owner' }} />
+    <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
   </Tab.Navigator>
 );
 
-// ---- Root Stack ----
 export const AppNavigator: React.FC = () => (
   <NavigationContainer>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -97,26 +72,8 @@ export const AppNavigator: React.FC = () => (
       <Stack.Screen
         name="ShopDetail"
         component={DetailScreen}
-        options={{
-          presentation: 'card',
-          animationEnabled: true,
-        }}
+        options={{ presentation: 'card', animationEnabled: true }}
       />
     </Stack.Navigator>
   </NavigationContainer>
 );
-
-const styles = StyleSheet.create({
-  tabIconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabEmoji: {
-    fontSize: 20,
-    opacity: 0.5,
-  },
-  tabEmojiActive: {
-    opacity: 1,
-    transform: [{ scale: 1.1 }],
-  },
-});

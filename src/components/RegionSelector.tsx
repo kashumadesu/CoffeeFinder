@@ -11,6 +11,7 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, REGION_HUBS } from '@constants';
 import { useStore } from '@store/useStore';
 import type { RegionHub } from '@types';
@@ -32,9 +33,9 @@ export const RegionSelector: React.FC = () => {
         onPress={() => setModalVisible(true)}
         activeOpacity={0.8}
       >
-        <Text style={styles.pillIcon}>📍</Text>
+        <Feather name="map-pin" size={12} color={COLORS.primary} />
         <Text style={styles.pillText}>{currentRegion.name}</Text>
-        <Text style={styles.arrowIcon}>▾</Text>
+        <Feather name="chevron-down" size={13} color={COLORS.textSecondary} />
       </TouchableOpacity>
 
       <Modal
@@ -50,7 +51,7 @@ export const RegionSelector: React.FC = () => {
         >
           <SafeAreaView style={styles.modalSheet}>
             <View style={styles.dragHandle} />
-            <Text style={styles.modalTitle}>🇵🇭 Explore Philippine Coffee Hubs</Text>
+            <Text style={styles.modalTitle}>Explore Philippine Coffee Hubs</Text>
             <Text style={styles.modalSubtitle}>
               Browse specialty cafés and origin roasteries across the islands (100% Offline Ready):
             </Text>
@@ -70,7 +71,7 @@ export const RegionSelector: React.FC = () => {
                     </Text>
                     <Text style={styles.hubIsland}>{hub.island}</Text>
                   </View>
-                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                  {isSelected && <Feather name="check" size={16} color={COLORS.primary} />}
                 </TouchableOpacity>
               );
             })}
@@ -95,20 +96,12 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
-    gap: 4,
-  },
-  pillIcon: {
-    fontSize: 12,
+    gap: 5,
   },
   pillText: {
     fontSize: 12.5,
     fontWeight: '700',
     color: COLORS.primary,
-  },
-  arrowIcon: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: -1,
   },
   overlay: {
     flex: 1,
@@ -169,10 +162,5 @@ const styles = StyleSheet.create({
   hubIsland: {
     fontSize: 11.5,
     color: COLORS.textSecondary,
-  },
-  checkmark: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.primary,
   },
 });

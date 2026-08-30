@@ -1,11 +1,11 @@
 // ============================================================
-// CoffeeMarker — Custom Taupe & Dark Bubble Map Pin
+// CoffeeMarker — Custom Taupe & Dark Bubble Map Pin (Feather Icon + Memoized)
 // ============================================================
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
-import { COLORS } from '@constants';
+import { Feather } from '@expo/vector-icons';
 import type { CoffeeShop } from '@types';
 
 interface Props {
@@ -14,20 +14,26 @@ interface Props {
   onPress: (shop: CoffeeShop) => void;
 }
 
-export const CoffeeMarker: React.FC<Props> = ({ shop, isSelected, onPress }) => (
+const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) => (
   <Marker
     coordinate={shop.location}
     onPress={() => onPress(shop)}
-    tracksViewChanges={isSelected}
+    tracksViewChanges={false}
     title={shop.name}
     description={shop.vicinity}
   >
     <View style={[styles.pin, isSelected && styles.pinSelected]}>
-      <Text style={[styles.icon, isSelected && styles.iconSelected]}>☕</Text>
+      <Feather
+        name="coffee"
+        size={isSelected ? 18 : 16}
+        color={isSelected ? '#FFFFFF' : '#4A3423'}
+      />
       {isSelected && <View style={styles.tail} />}
     </View>
   </Marker>
 );
+
+export const CoffeeMarker = memo(CoffeeMarkerComponent);
 
 const styles = StyleSheet.create({
   pin: {
@@ -53,14 +59,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
     borderWidth: 2.5,
     transform: [{ scale: 1.15 }],
-  },
-  icon: {
-    fontSize: 16,
-    opacity: 0.85,
-  },
-  iconSelected: {
-    fontSize: 18,
-    opacity: 1,
   },
   tail: {
     position: 'absolute',

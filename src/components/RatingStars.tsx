@@ -1,9 +1,10 @@
 // ============================================================
-// RatingStars Component — Clean Star Rating
+// RatingStars — Vector Icon star rating + GCash badge
 // ============================================================
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING } from '@constants';
 
 interface Props {
@@ -21,19 +22,18 @@ export const RatingStars: React.FC<Props> = ({
 }) => {
   return (
     <View style={styles.row}>
-      <Text style={[styles.starIcon, { fontSize: size }]}>⭐</Text>
+      <Feather name="star" size={size} color={COLORS.star} />
       <Text style={[styles.ratingNumber, { fontSize: size }]}>
         {rating.toFixed(1)}
       </Text>
       {count !== undefined && (
         <Text style={[styles.count, { fontSize: size - 1 }]}>
-          ({count >= 1000 ? `${(count / 1000).toFixed(1)}k` : count} reviews)
+          ({count >= 1000 ? `${(count / 1000).toFixed(1)}k` : count})
         </Text>
       )}
-
       {showGcash && (
         <View style={styles.gcashPill}>
-          <Text style={styles.gcashIcon}>🔵</Text>
+          <View style={styles.gcashDot} />
           <Text style={styles.gcashText}>GCash</Text>
         </View>
       )}
@@ -45,11 +45,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  starIcon: {
-    color: COLORS.star,
-    marginTop: -1,
+    gap: 3,
   },
   ratingNumber: {
     fontWeight: '700',
@@ -57,7 +53,7 @@ const styles = StyleSheet.create({
   },
   count: {
     color: COLORS.textSecondary,
-    marginLeft: 2,
+    marginLeft: 1,
   },
   gcashPill: {
     flexDirection: 'row',
@@ -67,10 +63,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginLeft: SPACING.xs,
-    gap: 3,
+    gap: 4,
   },
-  gcashIcon: {
-    fontSize: 8,
+  gcashDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.gcash,
   },
   gcashText: {
     fontSize: 11,

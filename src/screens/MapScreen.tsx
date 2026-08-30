@@ -1,5 +1,5 @@
 // ============================================================
-// MapScreen — Discover Specialty Spots (With Map Type Switcher & Routing HUD)
+// MapScreen — Discover Specialty Spots (With Vector Icons & Throttled Map Updates)
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +16,7 @@ import MapView, { Region } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Feather } from '@expo/vector-icons';
 
 import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA } from '@constants';
 import { useStore } from '@store/useStore';
@@ -36,6 +37,7 @@ export const MapScreen: React.FC = () => {
   const nav = useNavigation<Nav>();
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const lastFetchRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   const [layersModalVisible, setLayersModalVisible] = useState(false);
 
@@ -119,9 +121,19 @@ export const MapScreen: React.FC = () => {
     }
   }, [setSelectedShop, activeNavigationShop]);
 
+  // Throttled region change handler to prevent excessive re-renders / crashes
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
       const center = { latitude: region.latitude, longitude: region.longitude };
+      if (lastFetchRef.current) {
+        const dLat = Math.abs(lastFetchRef.current.latitude - center.latitude);
+        const dLng = Math.abs(lastFetchRef.current.longitude - center.longitude);
+        // Only fetch if moved by at least ~1km to avoid crashing during map drag/zoom
+        if (dLat < 0.01 && dLng < 0.01) {
+          return;
+        }
+      }
+      lastFetchRef.current = center;
       fetchNearbyShops(center);
     },
     [fetchNearbyShops],
@@ -136,6 +148,20 @@ export const MapScreen: React.FC = () => {
     }
   };
 
+  // Memoized markers list to avoid re-rendering pins on pan/zoom
+  const renderedMarkers = useMemo(() => {
+    return shops.map((shop) => (
+      <CoffeeMarker
+        key={shop.id}
+        shop={shop}
+        isSelected={
+          activeNavigationShop?.id === shop.id || selectedShop?.id === shop.id
+        }
+        onPress={handleMarkerPress}
+      />
+    ));
+  }, [shops, activeNavigationShop?.id, selectedShop?.id, handleMarkerPress]);
+
   return (
     <View style={styles.container}>
       {/* Interactive Map with dynamic mapType */}
@@ -147,6 +173,7 @@ export const MapScreen: React.FC = () => {
         showsMyLocationButton={false}
         minZoomLevel={6}
         mapType={mapType}
+        moveOnMarkerPress={false}
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
@@ -158,16 +185,7 @@ export const MapScreen: React.FC = () => {
           />
         )}
 
-        {shops.map((shop) => (
-          <CoffeeMarker
-            key={shop.id}
-            shop={shop}
-            isSelected={
-              activeNavigationShop?.id === shop.id || selectedShop?.id === shop.id
-            }
-            onPress={handleMarkerPress}
-          />
-        ))}
+        {renderedMarkers}
       </MapView>
 
       {/* Floating Header (Search + Regional Hub Switcher + Category Filters) */}
@@ -188,14 +206,17 @@ export const MapScreen: React.FC = () => {
       {activeNavigationShop && (
         <View style={styles.navHudCard}>
           <View style={styles.navHudLeft}>
-            <Text style={styles.navHudIcon}>🧭</Text>
+            <Feather name="navigation" size={20} color={COLORS.primary} />
             <View>
               <Text style={styles.navHudTitle} numberOfLines={1}>
                 Routing to {activeNavigationShop.name}
               </Text>
-              <Text style={styles.navHudEta}>
-                🚶 8 mins ({formatDistance(activeNavigationShop.distance ?? 650)}) • Live Navigation
-              </Text>
+              <View style={styles.navHudEtaRow}>
+                <Feather name="clock" size={11} color={COLORS.textSecondary} />
+                <Text style={styles.navHudEta}>
+                  8 mins ({formatDistance(activeNavigationShop.distance ?? 650)}) • Live Navigation
+                </Text>
+              </View>
             </View>
           </View>
           <TouchableOpacity
@@ -203,7 +224,8 @@ export const MapScreen: React.FC = () => {
             onPress={stopNavigation}
             activeOpacity={0.8}
           >
-            <Text style={styles.navEndText}>✕ End</Text>
+            <Feather name="x" size={12} color={COLORS.danger} />
+            <Text style={styles.navEndText}>End</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -211,7 +233,8 @@ export const MapScreen: React.FC = () => {
       {/* Offline Mode Indicator Pill */}
       {isOffline && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>📱 100% Offline Mode Active (Cached Hub)</Text>
+          <Feather name="wifi-off" size={12} color="#6E4822" />
+          <Text style={styles.offlineText}>Offline Mode Active (Cached Hub)</Text>
         </View>
       )}
 
@@ -222,7 +245,7 @@ export const MapScreen: React.FC = () => {
           onPress={toggleGcashOnly}
           activeOpacity={0.85}
         >
-          <Text style={styles.gcashPillIcon}>🔵</Text>
+          <View style={styles.gcashDot} />
           <Text style={[styles.gcashPillText, gcashOnly && styles.gcashPillTextActive]}>
             GCash-accepted
           </Text>
@@ -236,13 +259,11 @@ export const MapScreen: React.FC = () => {
           onPress={() => setLayersModalVisible(true)}
           activeOpacity={0.85}
         >
-          <Text style={styles.mapLayerIcon}>
-            {mapType === 'satellite' ? '🛰️' : mapType === 'terrain' ? '⛰️' : '🗺️'}
-          </Text>
+          <Feather name="layers" size={20} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.85}>
-          <Text style={styles.myLocationIcon}>🧭</Text>
+          <Feather name="crosshair" size={20} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -259,11 +280,11 @@ export const MapScreen: React.FC = () => {
           activeOpacity={1}
         >
           <View style={styles.layersSheet}>
-            <Text style={styles.layersTitle}>🗺 Select Map Layer</Text>
+            <Text style={styles.layersTitle}>Select Map Layer</Text>
             {[
-              { type: 'standard' as MapTypeOption, label: '🌿 Specialty Standard', sub: 'Clean road map' },
-              { type: 'satellite' as MapTypeOption, label: '🛰️ Satellite Hybrid', sub: 'High-res aerial photography' },
-              { type: 'terrain' as MapTypeOption, label: '⛰️ Highland Terrain', sub: 'Topography & mountain contours' },
+              { type: 'standard' as MapTypeOption, label: 'Standard Road', sub: 'Clean road map' },
+              { type: 'satellite' as MapTypeOption, label: 'Satellite Hybrid', sub: 'High-res aerial photography' },
+              { type: 'terrain' as MapTypeOption, label: 'Highland Terrain', sub: 'Topography & mountain contours' },
             ].map((layer) => (
               <TouchableOpacity
                 key={layer.type}
@@ -282,7 +303,7 @@ export const MapScreen: React.FC = () => {
                   </Text>
                   <Text style={styles.layerSub}>{layer.sub}</Text>
                 </View>
-                {mapType === layer.type && <Text style={styles.checkmark}>✓</Text>}
+                {mapType === layer.type && <Feather name="check" size={16} color={COLORS.primary} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -326,7 +347,7 @@ export const MapScreen: React.FC = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>☕</Text>
+                <Feather name="coffee" size={36} color={COLORS.textMuted} />
                 <Text style={styles.emptyText}>
                   {isLoading
                     ? 'Searching specialty spots…'
@@ -397,27 +418,32 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: SPACING.xs,
   },
-  navHudIcon: {
-    fontSize: 22,
-  },
   navHudTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: COLORS.primary,
   },
+  navHudEtaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
   navHudEta: {
     fontSize: 11.5,
     color: COLORS.textSecondary,
     fontWeight: '600',
-    marginTop: 2,
   },
   navEndBtn: {
     backgroundColor: '#FDEDEC',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: '#FADBD8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   navEndText: {
     fontSize: 12,
@@ -435,6 +461,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 5,
     zIndex: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   offlineText: {
     fontSize: 11.5,
@@ -457,15 +486,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
-    gap: 4,
+    gap: 6,
     zIndex: 9,
   },
   gcashFloatingPillActive: {
     backgroundColor: '#E6F2FF',
     borderColor: COLORS.gcash,
   },
-  gcashPillIcon: {
-    fontSize: 10,
+  gcashDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.gcash,
   },
   gcashPillText: {
     fontSize: 12,
@@ -497,9 +529,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  mapLayerIcon: {
-    fontSize: 18,
-  },
   myLocationBtn: {
     backgroundColor: COLORS.surface,
     width: 44,
@@ -514,9 +543,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-  },
-  myLocationIcon: {
-    fontSize: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -561,11 +587,6 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: COLORS.textSecondary,
     marginTop: 1,
-  },
-  checkmark: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.primary,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -623,9 +644,6 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     paddingHorizontal: SPACING.xl,
     gap: SPACING.sm,
-  },
-  emptyIcon: {
-    fontSize: 40,
   },
   emptyText: {
     fontSize: 13.5,

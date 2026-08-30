@@ -1,5 +1,5 @@
 // ============================================================
-// App Constants — Specialty Coffee (PH Edition)
+// constants/index.ts — App Constants (Icons + Data)
 // ============================================================
 
 import { GOOGLE_MAPS_API_KEY } from '@env';
@@ -14,27 +14,27 @@ export const getPhotoUrl = (photoRef: string, maxWidth = 800): string =>
 
 // ---- Modern Design System Colors ----
 export const COLORS = {
-  primary: '#2A4736',        // Deep forest green
-  primaryDark: '#1C3326',    // Darker forest green
-  primaryLight: '#3D614C',   // Medium sage green
+  primary: '#2A4736',
+  primaryDark: '#1C3326',
+  primaryLight: '#3D614C',
   primaryMuted: '#4F725E',
-  
-  background: '#FAF8F3',     // Warm specialty cream
-  surface: '#FFFFFF',        // Pure white card
-  surfaceSage: '#EAF4EE',    // Pale mint container
-  surfaceWarm: '#F3EFE6',    // Soft sand
-  
-  taupe: '#D2C4B5',          // Unselected map pins & search button
+
+  background: '#FAF8F3',
+  surface: '#FFFFFF',
+  surfaceSage: '#EAF4EE',
+  surfaceWarm: '#F3EFE6',
+
+  taupe: '#D2C4B5',
   taupeLight: '#E8DFD5',
-  tagBrown: '#5D4037',       // Earth brown vibe pills
+  tagBrown: '#5D4037',
   tagBrownBg: '#EFEBE9',
-  tagGreen: '#2A4736',       // Forest green vibe pills
+  tagGreen: '#2A4736',
   tagGreenBg: '#E8F1EC',
-  
+
   textPrimary: '#1F1E1D',
   textSecondary: '#66625D',
   textMuted: '#9B9690',
-  
+
   gcash: '#007DFE',
   gcashBg: '#E6F2FF',
   verified: '#27AE60',
@@ -42,8 +42,8 @@ export const COLORS = {
   warning: '#E67E22',
   danger: '#E74C3C',
   star: '#F5A623',
-  route: '#2A4736',          // Navigation Polyline Color
-  
+  route: '#2A4736',
+
   border: '#E8E3DA',
   borderLight: '#F0ECE4',
   overlay: 'rgba(0,0,0,0.45)',
@@ -67,7 +67,7 @@ export const RADIUS = {
   full: 999,
 };
 
-// ---- Philippine Regional Coffee Hubs (100% Offline Accessible) ----
+// ---- Philippine Regional Coffee Hubs ----
 export const REGION_HUBS: RegionHub[] = [
   {
     id: 'manila',
@@ -139,26 +139,27 @@ export const DELTA = {
 export const SEARCH_KEYWORD = 'specialty coffee shop';
 export const PLACE_TYPES = 'cafe';
 
-// Specialty Filter Chips
+// ---- Specialty Filter Chips (icon names from @expo/vector-icons Feather) ----
 export const SPECIALTY_CATEGORIES = [
-  { id: 'specialty', label: '☕ Specialty' },
-  { id: 'outlets', label: '⚡ Outlets' },
-  { id: 'alfresco', label: '🌱 Al Fresco' },
-  { id: 'petFriendly', label: '🐾 Pet Friendly' },
-  { id: 'new', label: '🆕 New' },
-  { id: 'fastWifi', label: '📶 Fast Wi-Fi' },
+  { id: 'specialty', label: 'Specialty', icon: 'coffee' },
+  { id: 'outlets', label: 'Outlets', icon: 'zap' },
+  { id: 'alfresco', label: 'Al Fresco', icon: 'sun' },
+  { id: 'petFriendly', label: 'Pet Friendly', icon: 'heart' },
+  { id: 'new', label: 'New', icon: 'star' },
+  { id: 'fastWifi', label: 'Fast Wi-Fi', icon: 'wifi' },
 ];
 
+// ---- Flavor tags (text only, no emoji) ----
 export const FLAVOR_TAGS = [
-  '🌸 Jasmine',
-  '🍋 Bergamot',
-  '🍯 Wild Honey',
-  '🍫 Dark Chocolate',
-  '🫐 Blueberry',
-  '🥭 Dried Mango',
-  '🥜 Roasted Hazelnut',
-  '🌾 Muscovado Sugar',
-  '🍊 Citrus Zest',
+  'Jasmine',
+  'Bergamot',
+  'Wild Honey',
+  'Dark Chocolate',
+  'Blueberry',
+  'Dried Mango',
+  'Roasted Hazelnut',
+  'Muscovado Sugar',
+  'Citrus Zest',
 ];
 
 export const PRICE_LABELS: Record<number, string> = {
@@ -169,7 +170,7 @@ export const PRICE_LABELS: Record<number, string> = {
   4: '₱₱₱₱',
 };
 
-// ---- Rich Philippine Specialty Dataset with Tasting Notes & Recipes ----
+// ---- Rich Philippine Specialty Dataset ----
 export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
   {
     id: 'ph-chapter-coffee',
@@ -215,7 +216,7 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
         shopId: 'ph-chapter-coffee',
         author: 'Maria C. (Barista)',
         rating: 5,
-        notes: ['🌸 Jasmine', '🍋 Bergamot', '🍯 Wild Honey'],
+        notes: ['Jasmine', 'Bergamot', 'Wild Honey'],
         brewMethod: 'V60 Pour-Over',
         comment: 'Bright floral aroma with sweet honey aftertaste. Best pour-over in Tomas Morato!',
         createdAt: '2 hours ago',
@@ -225,7 +226,7 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
         shopId: 'ph-chapter-coffee',
         author: 'Joshua P.',
         rating: 5,
-        notes: ['🥭 Dried Mango', '🍫 Dark Chocolate'],
+        notes: ['Dried Mango', 'Dark Chocolate'],
         brewMethod: 'Flat White (Oat)',
         comment: 'Super smooth espresso with natural sweetness. Very laptop friendly with fast Wi-Fi.',
         createdAt: '1 day ago',
@@ -276,7 +277,7 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
         shopId: 'ph-yardstick-coffee',
         author: 'Bea L.',
         rating: 5,
-        notes: ['🍫 Dark Chocolate', '🥜 Roasted Hazelnut', '🌾 Muscovado Sugar'],
+        notes: ['Dark Chocolate', 'Roasted Hazelnut', 'Muscovado Sugar'],
         brewMethod: 'Yardshake / Espresso',
         comment: 'Legendary coffee experience. The baristas know their craft inside out.',
         createdAt: 'Yesterday',
@@ -362,7 +363,7 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
         shopId: 'ph-sagada-brew',
         author: 'Datu K.',
         rating: 5,
-        notes: ['🍫 Dark Chocolate', '🌾 Muscovado Sugar', '🍊 Citrus Zest'],
+        notes: ['Dark Chocolate', 'Muscovado Sugar', 'Citrus Zest'],
         brewMethod: 'Sagada Drip',
         comment: 'Drinking origin coffee right in the mountain breeze is unforgettable.',
         createdAt: '3 days ago',

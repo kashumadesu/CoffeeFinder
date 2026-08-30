@@ -7,6 +7,7 @@ import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Feather } from '@expo/vector-icons';
 
 import { COLORS, SPACING } from '@constants';
 import { useFavorites } from '@hooks/useFavorites';
@@ -27,7 +28,10 @@ export const FavoritesScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🔖 Saved Specialty Spots</Text>
+        <View style={styles.titleRow}>
+          <Feather name="bookmark" size={20} color={COLORS.primary} />
+          <Text style={styles.headerTitle}>Saved Specialty Spots</Text>
+        </View>
         {favorites.length > 0 && (
           <Text style={styles.headerSubtitle}>
             {favorites.length} saved {favorites.length === 1 ? 'café' : 'cafés'}
@@ -49,7 +53,7 @@ export const FavoritesScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>☕</Text>
+            <Feather name="bookmark" size={48} color={COLORS.taupe} />
             <Text style={styles.emptyTitle}>No saved spots yet</Text>
             <Text style={styles.emptySubtitle}>
               Tap the heart on any specialty café in the Discover map to bookmark it here for your next coffee run.
@@ -73,6 +77,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
@@ -82,6 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: COLORS.textSecondary,
     marginTop: 2,
+    paddingLeft: 28,
   },
   listContent: {
     paddingVertical: SPACING.sm,
@@ -93,16 +103,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     gap: SPACING.sm,
   },
-  emptyIcon: {
-    fontSize: 50,
-  },
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
   emptySubtitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 19,
