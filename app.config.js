@@ -66,6 +66,7 @@ export default {
             'Allow Coffee Finder to access your camera to photograph business permits for owner verification and latte art.',
         },
       ],
+      'expo-web-browser',
     ],
     extra: {
       eas: {

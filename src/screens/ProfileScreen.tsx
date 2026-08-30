@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -23,6 +24,8 @@ import {
   logoutUser,
   subscribeToAuthChanges,
 } from '@services/firebase';
+import { promptGoogleSignIn } from '@services/googleAuth';
+import { hapticSuccess } from '@utils/haptics';
 
 interface PassportStamp {
   id: string;
@@ -89,11 +92,44 @@ export const ProfileScreen: React.FC = () => {
     };
   });
 
-  const handleSocialLogin = (provider: 'Apple' | 'Google' | 'Facebook') => {
-    setUserName(provider === 'Apple' ? 'Apple ID Coffee Explorer' : `${provider} Coffee Explorer`);
-    setIsLoggedIn(true);
-    setAuthModalVisible(false);
-    Alert.alert('Signed In', `Welcome back! Connected via ${provider}. Your saved cafes and passport stamps are synced.`);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const { profile, error } = await promptGoogleSignIn();
+      if (profile) {
+        const name = profile.name || profile.email.split('@')[0];
+        setUserName(name);
+        setIsLoggedIn(true);
+        setAuthModalVisible(false);
+        hapticSuccess();
+        Alert.alert(
+          'Google Connected',
+          `Welcome, ${name}! Signed in with Google (${profile.email}). Your passport stamps and saved cafés are synced.`,
+        );
+      } else if (error && error !== 'Cancelled by user') {
+        Alert.alert('Google Sign-In', error);
+      }
+    } catch (err: any) {
+      Alert.alert('Google Sign-In Error', err.message || 'Could not complete Google Sign-In.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: 'Apple' | 'Facebook') => {
+    if (provider === 'Apple') {
+      Alert.alert(
+        'Apple Sign-In',
+        'Apple Sign-In will activate automatically upon App Store submission with your Apple Developer Account.',
+      );
+    } else {
+      Alert.alert(
+        'Facebook Login',
+        'Facebook Login is ready to connect once a Facebook App ID is linked in your developer settings.',
+      );
+    }
   };
 
   const handleEmailAuth = async () => {
@@ -382,14 +418,44 @@ export const ProfileScreen: React.FC = () => {
               Sync your saved spots, coffee passport stamps, and reviews across your devices.
             </Text>
 
-            {/* Social Login — Coming in v2.1 */}
+            {/* Social Login Options */}
             <View style={styles.socialBtnGroup}>
-              <View style={styles.comingSoonNote}>
-                <Feather name="info" size={13} color={COLORS.textMuted} />
-                <Text style={styles.comingSoonText}>
-                  Apple ID, Google & Facebook sign-in coming in v2.1. Use email below.
-                </Text>
-              </View>
+              {/* Google Sign In — Active & Configured */}
+              <TouchableOpacity
+                style={styles.googleBtn}
+                onPress={handleGoogleLogin}
+                activeOpacity={0.85}
+                disabled={isGoogleLoading}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <>
+                    <Feather name="globe" size={16} color="#DB4437" />
+                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Apple Sign In */}
+              <TouchableOpacity
+                style={styles.appleBtn}
+                onPress={() => handleSocialLogin('Apple')}
+                activeOpacity={0.85}
+              >
+                <Feather name="command" size={16} color="#FFFFFF" />
+                <Text style={styles.appleBtnText}>Continue with Apple ID</Text>
+              </TouchableOpacity>
+
+              {/* Facebook Login */}
+              <TouchableOpacity
+                style={styles.facebookBtn}
+                onPress={() => handleSocialLogin('Facebook')}
+                activeOpacity={0.85}
+              >
+                <Feather name="facebook" size={16} color="#FFFFFF" />
+                <Text style={styles.facebookBtnText}>Continue with Facebook</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.dividerRow}>
