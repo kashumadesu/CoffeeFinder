@@ -210,6 +210,34 @@ export const DetailScreen: React.FC = () => {
               </View>
             </View>
 
+            {/* Price Range & Popular Highlights */}
+            {shop.priceRange && (
+              <View style={styles.pricingContainer}>
+                <View style={styles.pricingTopRow}>
+                  <View style={styles.pricingTitleLeft}>
+                    <Feather name="tag" size={13} color={COLORS.primary} />
+                    <Text style={styles.pricingSectionTitle}>Price Range</Text>
+                  </View>
+                  <Text style={styles.priceRangeHighlight}>
+                    ₱{shop.priceRange.min} – ₱{shop.priceRange.max}
+                    <Text style={styles.priceAvgSubtitle}> (avg ₱{shop.priceRange.average})</Text>
+                  </Text>
+                </View>
+
+                {shop.menuHighlights && shop.menuHighlights.length > 0 && (
+                  <View style={styles.menuList}>
+                    {shop.menuHighlights.map((m, idx) => (
+                      <View key={idx} style={styles.menuItemRow}>
+                        <Text style={styles.menuItemName}>{m.name}</Text>
+                        <View style={styles.menuItemDots} />
+                        <Text style={styles.menuItemPrice}>₱{m.price}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Action Row */}
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -452,6 +480,67 @@ const styles = StyleSheet.create({
     padding: SPACING.md - 2,
     gap: 6,
     marginTop: 4,
+  },
+  pricingContainer: {
+    backgroundColor: COLORS.surfaceSage,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md - 2,
+    gap: 8,
+    marginTop: 4,
+  },
+  pricingTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pricingTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  pricingSectionTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  priceRangeHighlight: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  priceAvgSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+  },
+  menuList: {
+    gap: 5,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(42, 71, 54, 0.12)',
+  },
+  menuItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  menuItemName: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+  },
+  menuItemDots: {
+    flex: 1,
+    height: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(42, 71, 54, 0.15)',
+    borderStyle: 'dashed',
+    marginHorizontal: 8,
+  },
+  menuItemPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   amenityRow: {
     flexDirection: 'row',

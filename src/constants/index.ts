@@ -139,7 +139,7 @@ export const DELTA = {
 export const SEARCH_KEYWORD = 'specialty coffee shop';
 export const PLACE_TYPES = 'cafe';
 
-// ---- Specialty Filter Chips (icon names from @expo/vector-icons Feather) ----
+// ---- Specialty Filter Chips ----
 export const SPECIALTY_CATEGORIES = [
   { id: 'specialty', label: 'Specialty', icon: 'coffee' },
   { id: 'outlets', label: 'Outlets', icon: 'zap' },
@@ -149,7 +149,6 @@ export const SPECIALTY_CATEGORIES = [
   { id: 'fastWifi', label: 'Fast Wi-Fi', icon: 'wifi' },
 ];
 
-// ---- Flavor tags (text only, no emoji) ----
 export const FLAVOR_TAGS = [
   'Jasmine',
   'Bergamot',
@@ -170,7 +169,7 @@ export const PRICE_LABELS: Record<number, string> = {
   4: '₱₱₱₱',
 };
 
-// ---- Rich Philippine Specialty Dataset ----
+// ---- Rich Philippine Specialty Dataset with Price Ranges & Menu Highlights ----
 export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
   {
     id: 'ph-chapter-coffee',
@@ -184,6 +183,12 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     userRatingsTotal: 1240,
     openNow: true,
     priceLevel: 2,
+    priceRange: { min: 120, max: 240, average: 175, currency: '₱' },
+    menuHighlights: [
+      { name: 'Benguet Typica V60', price: 210, category: 'filter' },
+      { name: 'Flat White (Oat Milk)', price: 180, category: 'milk' },
+      { name: 'Double Ristretto', price: 120, category: 'espresso' },
+    ],
     distance: 750,
     isVerified: true,
     acceptsGcash: true,
@@ -245,6 +250,12 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     userRatingsTotal: 2150,
     openNow: true,
     priceLevel: 3,
+    priceRange: { min: 140, max: 320, average: 210, currency: '₱' },
+    menuHighlights: [
+      { name: 'Golden Ticket Espresso', price: 150, category: 'espresso' },
+      { name: 'Yardshake (Signature)', price: 240, category: 'signature' },
+      { name: 'Reserve Hand Brew', price: 280, category: 'filter' },
+    ],
     distance: 1100,
     isVerified: true,
     acceptsGcash: true,
@@ -296,6 +307,12 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     userRatingsTotal: 890,
     openNow: true,
     priceLevel: 2,
+    priceRange: { min: 130, max: 250, average: 180, currency: '₱' },
+    menuHighlights: [
+      { name: 'Mt. Apo Aeropress', price: 200, category: 'filter' },
+      { name: 'Sea Salt Cream Latte', price: 190, category: 'milk' },
+      { name: 'Nitro Cold Brew', price: 170, category: 'signature' },
+    ],
     distance: 420,
     isVerified: true,
     acceptsGcash: true,
@@ -333,6 +350,12 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     userRatingsTotal: 740,
     openNow: true,
     priceLevel: 1,
+    priceRange: { min: 80, max: 180, average: 125, currency: '₱' },
+    menuHighlights: [
+      { name: 'Sagada Drip Coffee', price: 90, category: 'filter' },
+      { name: 'Highland French Press', price: 140, category: 'filter' },
+      { name: 'Mountain Honey Latte', price: 160, category: 'milk' },
+    ],
     distance: 850,
     isVerified: true,
     acceptsGcash: true,
@@ -382,6 +405,12 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     userRatingsTotal: 920,
     openNow: true,
     priceLevel: 2,
+    priceRange: { min: 140, max: 260, average: 190, currency: '₱' },
+    menuHighlights: [
+      { name: '16h Slow Cold Drip', price: 190, category: 'signature' },
+      { name: 'Coconut Milk Flat White', price: 180, category: 'milk' },
+      { name: 'Bukidnon Hand Brew', price: 210, category: 'filter' },
+    ],
     distance: 500,
     isVerified: true,
     acceptsGcash: true,

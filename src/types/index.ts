@@ -15,59 +15,89 @@ export interface TastingNote {
   shopId: string;
   author: string;
   rating: number;
-  notes: string[];       // e.g. ["🌸 Jasmine", "🍋 Bergamot", "🍯 Wild Honey"]
-  brewMethod?: string;   // e.g. "V60 Pour-Over"
+  notes: string[];
+  brewMethod?: string;
   comment: string;
   createdAt: string;
-  photoUri?: string;     // Local user review photo attachment
+  photoUri?: string;
 }
 
 export interface BrewRecipe {
-  beanOrigin: string;    // e.g. "Benguet Atok (Arabica Typica)"
-  roastLevel: string;    // e.g. "Light-Medium"
-  ratio: string;         // e.g. "1:15 (15g coffee / 225g water)"
-  temperature: string;   // e.g. "92°C"
-  grindSize: string;     // e.g. "Medium-Coarse"
-  brewTime: string;      // e.g. "2m 45s"
+  beanOrigin: string;
+  roastLevel: string;
+  ratio: string;
+  temperature: string;
+  grindSize: string;
+  brewTime: string;
 }
 
 export interface RegionHub {
   id: string;
   name: string;
-  island: string;        // e.g. "Luzon", "Visayas", "Mindanao"
+  island: string;
   latitude: number;
   longitude: number;
   latitudeDelta: number;
   longitudeDelta: number;
 }
 
-export interface CoffeeShop {
-  id: string;              // Google place_id or unique ID
+export interface PriceRange {
+  min: number;
+  max: number;
+  average: number;
+  currency: string;
+}
+
+export interface MenuItem {
   name: string;
-  vicinity: string;        // Short address
+  price: number;
+  category?: 'espresso' | 'filter' | 'milk' | 'pastry' | 'signature';
+}
+
+export type OwnerVerificationStatus = 'unregistered' | 'pending' | 'verified' | 'rejected';
+
+export interface OwnerClaimRequest {
+  shopId: string;
+  shopName: string;
+  ownerFullName: string;
+  businessEmail: string;
+  phoneNumber: string;
+  dtiOrSecNumber: string;
+  permitType: 'DTI Registration' | 'Mayor Permit' | 'Barangay Clearance' | 'BIR Certificate';
+  permitPhotoUri?: string;
+  submittedAt: string;
+  status: OwnerVerificationStatus;
+}
+
+export interface CoffeeShop {
+  id: string;
+  name: string;
+  vicinity: string;
   formattedAddress?: string;
-  city?: string;           // e.g. "Quezon City", "Sagada", "Cebu", "Siargao"
-  regionId?: string;       // e.g. "manila", "sagada", "benguet", "cebu", "siargao"
+  city?: string;
+  regionId?: string;
   location: Location;
   rating?: number;
   userRatingsTotal?: number;
   openNow?: boolean;
   openingHours?: OpeningHours;
   photos?: Photo[];
-  galleryUrls?: string[];  // Direct image URLs for 3-photo mosaic
+  galleryUrls?: string[];
   phoneNumber?: string;
   website?: string;
-  priceLevel?: number;     // 0-4
-  distance?: number;       // metres from user
+  priceLevel?: number;
+  priceRange?: PriceRange;
+  menuHighlights?: MenuItem[];
+  distance?: number;
   types?: string[];
-  
-  // Philippine Specialty & WFC attributes (Matching mockup)
+
+  // Philippine Specialty & WFC attributes
   isVerified?: boolean;
   acceptsGcash?: boolean;
-  vibeTags?: string[];     // e.g. ["#UnderratedGem", "#QuietVibe", "#SingleOrigin", "#LaptopFriendly"]
-  seatingStatus?: LiveSeatingStatus; // e.g. "moderate" -> "Seats Available (Moderate)"
-  wifiSpeed?: string;      // e.g. "Fast (200 Mbps+ verified)"
-  hasOutlets?: boolean;    // e.g. true
+  vibeTags?: string[];
+  seatingStatus?: LiveSeatingStatus;
+  wifiSpeed?: string;
+  hasOutlets?: boolean;
   isPetFriendly?: boolean;
   hasAlFresco?: boolean;
   isSpecialty?: boolean;
@@ -93,7 +123,7 @@ export type PriceLevel = 0 | 1 | 2 | 3 | 4;
 
 // ---- Filter types ----
 
-export type CategoryFilter = 
+export type CategoryFilter =
   | 'all'
   | 'outlets'
   | 'specialty'

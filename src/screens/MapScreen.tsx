@@ -1,5 +1,5 @@
 // ============================================================
-// MapScreen — Discover Specialty Spots (With Vector Icons & Throttled Map Updates)
+// MapScreen — Discover Specialty Spots (Interactive Pins & In-App Routing)
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
@@ -18,7 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { Feather } from '@expo/vector-icons';
 
-import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA } from '@constants';
+import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA, getPhotoUrl } from '@constants';
 import { useStore } from '@store/useStore';
 import { useLocation } from '@hooks/useLocation';
 import { useFavorites } from '@hooks/useFavorites';
@@ -28,6 +29,7 @@ import { FilterBar } from '@components/FilterBar';
 import { RegionSelector } from '@components/RegionSelector';
 import { RoutePolyline } from '@components/RoutePolyline';
 import { ShopCard } from '@components/ShopCard';
+import { RatingStars } from '@components/RatingStars';
 import { formatDistance } from '@services/googlePlaces';
 import type { CoffeeShop, RootStackParamList, MapTypeOption } from '@types';
 
@@ -54,6 +56,7 @@ export const MapScreen: React.FC = () => {
   const gcashOnly = useStore((s) => s.filters.gcashOnly);
   const toggleGcashOnly = useStore((s) => s.toggleGcashOnly);
   const activeNavigationShop = useStore((s) => s.activeNavigationShop);
+  const startNavigation = useStore((s) => s.startNavigation);
   const stopNavigation = useStore((s) => s.stopNavigation);
   const loadTastingNotes = useStore((s) => s.loadTastingNotes);
 
@@ -61,16 +64,16 @@ export const MapScreen: React.FC = () => {
   useLocation();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  const snapPoints = useMemo(() => ['16%', '45%', '85%'], []);
+  const snapPoints = useMemo(() => ['15%', '42%', '85%'], []);
 
   useEffect(() => {
     fetchNearbyShops();
     loadTastingNotes();
   }, [fetchNearbyShops, loadTastingNotes]);
 
-  // Animate map when user location or region changes
+  // Animate map when user location changes (only if NOT currently navigating)
   useEffect(() => {
-    if (userLocation && mapRef.current) {
+    if (userLocation && mapRef.current && !activeNavigationShop && !selectedShop) {
       mapRef.current.animateToRegion(
         {
           ...userLocation,
@@ -80,25 +83,33 @@ export const MapScreen: React.FC = () => {
         500,
       );
     }
-  }, [userLocation]);
+  }, [userLocation, activeNavigationShop, selectedShop]);
 
-  // Animate map when navigation starts or shop selected
+  // Frame route or focus on selected shop
   useEffect(() => {
-    const target = activeNavigationShop ?? selectedShop;
-    if (target && mapRef.current) {
+    if (activeNavigationShop && userLocation && mapRef.current) {
+      // Smoothly fit both user location & destination along the route
+      mapRef.current.fitToCoordinates([userLocation, activeNavigationShop.location], {
+        edgePadding: {
+          top: Platform.OS === 'ios' ? 190 : 150,
+          right: 50,
+          bottom: 180,
+          left: 50,
+        },
+        animated: true,
+      });
+    } else if (selectedShop && mapRef.current) {
       mapRef.current.animateToRegion(
         {
-          ...target.location,
+          latitude: selectedShop.location.latitude - 0.003, // slight offset to leave room for preview card
+          longitude: selectedShop.location.longitude,
           latitudeDelta: DELTA.small,
           longitudeDelta: DELTA.small,
         },
         450,
       );
-      if (!activeNavigationShop) {
-        bottomSheetRef.current?.snapToIndex(1);
-      }
     }
-  }, [selectedShop, activeNavigationShop]);
+  }, [selectedShop, activeNavigationShop, userLocation]);
 
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {
@@ -121,14 +132,13 @@ export const MapScreen: React.FC = () => {
     }
   }, [setSelectedShop, activeNavigationShop]);
 
-  // Throttled region change handler to prevent excessive re-renders / crashes
+  // Throttled region change handler to prevent excessive re-renders
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
       const center = { latitude: region.latitude, longitude: region.longitude };
       if (lastFetchRef.current) {
         const dLat = Math.abs(lastFetchRef.current.latitude - center.latitude);
         const dLng = Math.abs(lastFetchRef.current.longitude - center.longitude);
-        // Only fetch if moved by at least ~1km to avoid crashing during map drag/zoom
         if (dLat < 0.01 && dLng < 0.01) {
           return;
         }
@@ -162,9 +172,15 @@ export const MapScreen: React.FC = () => {
     ));
   }, [shops, activeNavigationShop?.id, selectedShop?.id, handleMarkerPress]);
 
+  // Quick preview photo
+  const previewPhotoUrl = selectedShop
+    ? selectedShop.galleryUrls?.[0] ??
+      (selectedShop.photos?.[0] ? getPhotoUrl(selectedShop.photos[0].photoReference, 300) : null)
+    : null;
+
   return (
     <View style={styles.container}>
-      {/* Interactive Map with dynamic mapType */}
+      {/* Interactive Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -177,7 +193,7 @@ export const MapScreen: React.FC = () => {
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
-        {/* Render Route Polyline when In-App Navigation is active */}
+        {/* Render Road-Following Route Polyline during navigation */}
         {activeNavigationShop && (
           <RoutePolyline
             origin={userLocation}
@@ -188,7 +204,7 @@ export const MapScreen: React.FC = () => {
         {renderedMarkers}
       </MapView>
 
-      {/* Floating Header (Search + Regional Hub Switcher + Category Filters) */}
+      {/* Floating Minimalist Header (Search + Hub Switcher + Filters) */}
       <View style={styles.headerOverlay}>
         <View style={styles.topRow}>
           <View style={styles.searchWrapper}>
@@ -198,7 +214,9 @@ export const MapScreen: React.FC = () => {
 
         <View style={styles.subFilterRow}>
           <RegionSelector />
-          <FilterBar />
+          <View style={styles.filterScrollWrapper}>
+            <FilterBar />
+          </View>
         </View>
       </View>
 
@@ -206,27 +224,38 @@ export const MapScreen: React.FC = () => {
       {activeNavigationShop && (
         <View style={styles.navHudCard}>
           <View style={styles.navHudLeft}>
-            <Feather name="navigation" size={20} color={COLORS.primary} />
-            <View>
+            <View style={styles.navIconCircle}>
+              <Feather name="navigation" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.navHudTextCol}>
               <Text style={styles.navHudTitle} numberOfLines={1}>
-                Routing to {activeNavigationShop.name}
+                Navigating to {activeNavigationShop.name}
               </Text>
               <View style={styles.navHudEtaRow}>
                 <Feather name="clock" size={11} color={COLORS.textSecondary} />
                 <Text style={styles.navHudEta}>
-                  8 mins ({formatDistance(activeNavigationShop.distance ?? 650)}) • Live Navigation
+                  Walking • {formatDistance(activeNavigationShop.distance ?? 650)}
                 </Text>
               </View>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.navEndBtn}
-            onPress={stopNavigation}
-            activeOpacity={0.8}
-          >
-            <Feather name="x" size={12} color={COLORS.danger} />
-            <Text style={styles.navEndText}>End</Text>
-          </TouchableOpacity>
+          <View style={styles.navHudActions}>
+            <TouchableOpacity
+              style={styles.navDetailBtn}
+              onPress={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
+              activeOpacity={0.8}
+            >
+              <Feather name="info" size={14} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navEndBtn}
+              onPress={stopNavigation}
+              activeOpacity={0.8}
+            >
+              <Feather name="x" size={12} color={COLORS.danger} />
+              <Text style={styles.navEndText}>End</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -234,38 +263,118 @@ export const MapScreen: React.FC = () => {
       {isOffline && (
         <View style={styles.offlineBanner}>
           <Feather name="wifi-off" size={12} color="#6E4822" />
-          <Text style={styles.offlineText}>Offline Mode Active (Cached Hub)</Text>
+          <Text style={styles.offlineText}>Offline Mode (Cached Hub)</Text>
         </View>
       )}
 
-      {/* Floating GCash-accepted Filter Badge (Bottom Left) */}
-      {!activeNavigationShop && (
+      {/* Floating Controls (Map Layer + GPS on Bottom Right) */}
+      <View
+        style={[
+          styles.floatingControlsRight,
+          selectedShop && !activeNavigationShop && { bottom: 220 },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.gcashFloatingPill, gcashOnly && styles.gcashFloatingPillActive]}
-          onPress={toggleGcashOnly}
-          activeOpacity={0.85}
-        >
-          <View style={styles.gcashDot} />
-          <Text style={[styles.gcashPillText, gcashOnly && styles.gcashPillTextActive]}>
-            GCash-accepted
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Floating Controls (Map Layer + GPS Target on Bottom Right) */}
-      <View style={styles.floatingControlsRight}>
-        <TouchableOpacity
-          style={styles.mapLayerBtn}
+          style={styles.controlCircleBtn}
           onPress={() => setLayersModalVisible(true)}
           activeOpacity={0.85}
         >
-          <Feather name="layers" size={20} color={COLORS.textPrimary} />
+          <Feather name="layers" size={18} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.85}>
-          <Feather name="crosshair" size={20} color={COLORS.textPrimary} />
+        <TouchableOpacity
+          style={styles.controlCircleBtn}
+          onPress={handleMyLocation}
+          activeOpacity={0.85}
+        >
+          <Feather name="crosshair" size={18} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
+
+      {/* Floating Quick Preview Card (Pop-up when clicking a pin) */}
+      {selectedShop && !activeNavigationShop && (
+        <View style={styles.quickPreviewCard}>
+          <TouchableOpacity
+            style={styles.previewCloseBtn}
+            onPress={() => setSelectedShop(null)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="x" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.previewContentRow}
+            onPress={() => handleShopPress(selectedShop)}
+            activeOpacity={0.9}
+          >
+            {/* Thumbnail */}
+            <View style={styles.previewThumbContainer}>
+              {previewPhotoUrl ? (
+                <Image source={{ uri: previewPhotoUrl }} style={styles.previewThumb} />
+              ) : (
+                <View style={styles.previewPlaceholder}>
+                  <Feather name="coffee" size={24} color={COLORS.textMuted} />
+                </View>
+              )}
+            </View>
+
+            {/* Info */}
+            <View style={styles.previewInfo}>
+              <View style={styles.previewTitleRow}>
+                <Text style={styles.previewName} numberOfLines={1}>
+                  {selectedShop.name}
+                </Text>
+                {selectedShop.isVerified && (
+                  <Feather name="check-circle" size={13} color={COLORS.verified} />
+                )}
+              </View>
+
+              {/* Rating + Distance */}
+              <View style={styles.previewMetaRow}>
+                {selectedShop.rating !== undefined && (
+                  <RatingStars rating={selectedShop.rating} size={11} />
+                )}
+                {selectedShop.distance !== undefined && (
+                  <Text style={styles.previewDistance}>
+                    • {formatDistance(selectedShop.distance)}
+                  </Text>
+                )}
+              </View>
+
+              {/* Price Range */}
+              <View style={styles.previewPriceRow}>
+                <Feather name="tag" size={11} color={COLORS.primary} />
+                <Text style={styles.previewPriceText}>
+                  {selectedShop.priceRange
+                    ? `₱${selectedShop.priceRange.min} – ₱${selectedShop.priceRange.max} / cup`
+                    : 'Specialty Coffee'}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Direct Action Buttons */}
+          <View style={styles.previewActionRow}>
+            <TouchableOpacity
+              style={styles.previewRouteBtn}
+              onPress={() => startNavigation(selectedShop)}
+              activeOpacity={0.85}
+            >
+              <Feather name="navigation" size={13} color="#FFFFFF" />
+              <Text style={styles.previewRouteText}>Navigate Route</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.previewDetailBtn}
+              onPress={() => handleShopPress(selectedShop)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.previewDetailText}>View Details</Text>
+              <Feather name="chevron-right" size={14} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Map Layers Modal */}
       <Modal
@@ -318,8 +427,8 @@ export const MapScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Bottom Sheet Drawer */}
-      {!activeNavigationShop && (
+      {/* Bottom Sheet Drawer (Only shown when not previewing a single pin or navigating) */}
+      {!activeNavigationShop && !selectedShop && (
         <BottomSheet
           ref={bottomSheetRef}
           snapPoints={snapPoints}
@@ -390,7 +499,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: SPACING.md,
-    gap: 4,
+    gap: 6,
+    width: '100%',
+  },
+  filterScrollWrapper: {
+    flex: 1,
   },
   navHudCard: {
     position: 'absolute',
@@ -399,7 +512,7 @@ const styles = StyleSheet.create({
     right: SPACING.md,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
-    padding: SPACING.md - 2,
+    padding: SPACING.sm + 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -416,23 +529,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     flex: 1,
-    paddingRight: SPACING.xs,
+  },
+  navIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navHudTextCol: {
+    flex: 1,
+    gap: 1,
   },
   navHudTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: COLORS.textPrimary,
   },
   navHudEtaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
   navHudEta: {
     fontSize: 11.5,
     color: COLORS.textSecondary,
     fontWeight: '600',
+  },
+  navHudActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  navDetailBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceSage,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navEndBtn: {
     backgroundColor: '#FDEDEC',
@@ -470,79 +606,150 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#6E4822',
   },
-  gcashFloatingPill: {
-    position: 'absolute',
-    bottom: 135,
-    left: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1.2,
-    borderColor: COLORS.border,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    gap: 6,
-    zIndex: 9,
-  },
-  gcashFloatingPillActive: {
-    backgroundColor: '#E6F2FF',
-    borderColor: COLORS.gcash,
-  },
-  gcashDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.gcash,
-  },
-  gcashPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#333333',
-  },
-  gcashPillTextActive: {
-    color: COLORS.gcash,
-  },
   floatingControlsRight: {
     position: 'absolute',
-    bottom: 135,
+    bottom: 120,
     right: SPACING.md,
     gap: SPACING.sm,
     zIndex: 9,
   },
-  mapLayerBtn: {
+  controlCircleBtn: {
     backgroundColor: COLORS.surface,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.2,
     borderColor: COLORS.border,
-    elevation: 4,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
   },
-  myLocationBtn: {
+  quickPreviewCard: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 80,
+    left: SPACING.md,
+    right: SPACING.md,
     backgroundColor: COLORS.surface,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md - 2,
     borderWidth: 1.2,
     borderColor: COLORS.border,
-    elevation: 4,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    zIndex: 30,
+    gap: SPACING.sm,
+  },
+  previewCloseBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    zIndex: 2,
+    padding: 4,
+  },
+  previewContentRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm + 2,
+  },
+  previewThumbContainer: {
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+  },
+  previewThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  previewPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: COLORS.surfaceWarm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 3,
+    paddingRight: 20,
+  },
+  previewTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  previewName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    flexShrink: 1,
+  },
+  previewMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  previewDistance: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  previewPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  previewPriceText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  previewActionRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  previewRouteBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  previewRouteText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  previewDetailBtn: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceSage,
+    borderRadius: RADIUS.full,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  previewDetailText: {
+    color: COLORS.primary,
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,

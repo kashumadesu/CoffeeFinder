@@ -1,8 +1,8 @@
 // ============================================================
-// CoffeeMarker — Custom Taupe & Dark Bubble Map Pin (Feather Icon + Memoized)
+// CoffeeMarker — Custom Taupe & Dark Bubble Map Pin (Touch Responsive)
 // ============================================================
 
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
@@ -14,24 +14,39 @@ interface Props {
   onPress: (shop: CoffeeShop) => void;
 }
 
-const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) => (
-  <Marker
-    coordinate={shop.location}
-    onPress={() => onPress(shop)}
-    tracksViewChanges={false}
-    title={shop.name}
-    description={shop.vicinity}
-  >
-    <View style={[styles.pin, isSelected && styles.pinSelected]}>
-      <Feather
-        name="coffee"
-        size={isSelected ? 18 : 16}
-        color={isSelected ? '#FFFFFF' : '#4A3423'}
-      />
-      {isSelected && <View style={styles.tail} />}
-    </View>
-  </Marker>
-);
+const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) => {
+  // Allow iOS native layout to finish rendering before freezing tracksViewChanges
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => {
+      setTracksViewChanges(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isSelected]);
+
+  return (
+    <Marker
+      coordinate={shop.location}
+      onPress={(e) => {
+        e.stopPropagation();
+        onPress(shop);
+      }}
+      tracksViewChanges={tracksViewChanges}
+      identifier={shop.id}
+    >
+      <View style={[styles.pin, isSelected && styles.pinSelected]}>
+        <Feather
+          name="coffee"
+          size={isSelected ? 18 : 16}
+          color={isSelected ? '#FFFFFF' : '#4A3423'}
+        />
+        {isSelected && <View style={styles.tail} />}
+      </View>
+    </Marker>
+  );
+};
 
 export const CoffeeMarker = memo(CoffeeMarkerComponent);
 
