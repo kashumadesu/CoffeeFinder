@@ -56,6 +56,8 @@ export const MapScreen: React.FC = () => {
   const gcashOnly = useStore((s) => s.filters.gcashOnly);
   const toggleGcashOnly = useStore((s) => s.toggleGcashOnly);
   const activeNavigationShop = useStore((s) => s.activeNavigationShop);
+  const navigationMode = useStore((s) => s.navigationMode);
+  const setNavigationMode = useStore((s) => s.setNavigationMode);
   const startNavigation = useStore((s) => s.startNavigation);
   const stopNavigation = useStore((s) => s.stopNavigation);
   const loadTastingNotes = useStore((s) => s.loadTastingNotes);
@@ -198,6 +200,7 @@ export const MapScreen: React.FC = () => {
           <RoutePolyline
             origin={userLocation}
             destination={activeNavigationShop.location}
+            mode={navigationMode}
           />
         )}
 
@@ -225,36 +228,82 @@ export const MapScreen: React.FC = () => {
         <View style={styles.navHudCard}>
           <View style={styles.navHudLeft}>
             <View style={styles.navIconCircle}>
-              <Feather name="navigation" size={18} color="#FFFFFF" />
+              <Feather
+                name={navigationMode === 'walking' ? 'navigation' : 'compass'}
+                size={18}
+                color="#FFFFFF"
+              />
             </View>
             <View style={styles.navHudTextCol}>
               <Text style={styles.navHudTitle} numberOfLines={1}>
-                Navigating to {activeNavigationShop.name}
+                {activeNavigationShop.name}
               </Text>
               <View style={styles.navHudEtaRow}>
                 <Feather name="clock" size={11} color={COLORS.textSecondary} />
                 <Text style={styles.navHudEta}>
-                  Walking • {formatDistance(activeNavigationShop.distance ?? 650)}
+                  {navigationMode === 'walking'
+                    ? `${Math.max(1, Math.round((activeNavigationShop.distance ?? 650) / 80))} mins walk`
+                    : `${Math.max(1, Math.round((activeNavigationShop.distance ?? 650) / 320))} mins drive`}
+                  {' • '}{formatDistance(activeNavigationShop.distance ?? 650)}
                 </Text>
               </View>
             </View>
           </View>
-          <View style={styles.navHudActions}>
-            <TouchableOpacity
-              style={styles.navDetailBtn}
-              onPress={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
-              activeOpacity={0.8}
-            >
-              <Feather name="info" size={14} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.navEndBtn}
-              onPress={stopNavigation}
-              activeOpacity={0.8}
-            >
-              <Feather name="x" size={12} color={COLORS.danger} />
-              <Text style={styles.navEndText}>End</Text>
-            </TouchableOpacity>
+
+          {/* Mode Switcher + Actions */}
+          <View style={styles.navHudRightCol}>
+            <View style={styles.modeToggleGroup}>
+              <TouchableOpacity
+                style={[
+                  styles.modePill,
+                  navigationMode === 'walking' && styles.modePillActive,
+                ]}
+                onPress={() => setNavigationMode('walking')}
+              >
+                <Text
+                  style={[
+                    styles.modePillText,
+                    navigationMode === 'walking' && styles.modePillTextActive,
+                  ]}
+                >
+                  Walk
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modePill,
+                  navigationMode === 'driving' && styles.modePillActive,
+                ]}
+                onPress={() => setNavigationMode('driving')}
+              >
+                <Text
+                  style={[
+                    styles.modePillText,
+                    navigationMode === 'driving' && styles.modePillTextActive,
+                  ]}
+                >
+                  Drive
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.navHudActions}>
+              <TouchableOpacity
+                style={styles.navDetailBtn}
+                onPress={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
+                activeOpacity={0.8}
+              >
+                <Feather name="info" size={13} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navEndBtn}
+                onPress={stopNavigation}
+                activeOpacity={0.8}
+              >
+                <Feather name="x" size={12} color={COLORS.danger} />
+                <Text style={styles.navEndText}>End</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}
@@ -556,6 +605,34 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: COLORS.textSecondary,
     fontWeight: '600',
+  },
+  navHudRightCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  modeToggleGroup: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.full,
+    padding: 2,
+    gap: 2,
+  },
+  modePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  modePillActive: {
+    backgroundColor: COLORS.primary,
+  },
+  modePillText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  modePillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   navHudActions: {
     flexDirection: 'row',

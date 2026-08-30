@@ -1,5 +1,5 @@
 // ============================================================
-// OwnerPortalScreen — Owner Verification, Claim & SaaS Dashboard
+// OwnerPortalScreen — Verification Gate, Claims & Admin Review Panel
 // ============================================================
 
 import React, { useState } from 'react';
@@ -84,8 +84,17 @@ const PLANS: Plan[] = [
 export const OwnerPortalScreen: React.FC = () => {
   const shops = useStore((s) => s.shops);
   const updateShopLiveStatus = useStore((s) => s.updateShopLiveStatus);
+  const claimRequests = useStore((s) => s.claimRequests);
+  const submitClaim = useStore((s) => s.submitClaim);
+  const approveClaim = useStore((s) => s.approveClaim);
+  const rejectClaim = useStore((s) => s.rejectClaim);
+  const isShopClaimed = useStore((s) => s.isShopClaimed);
+  const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
 
-  // Verification State (Defaults to 'unregistered' so the portal is protected)
+  // Portal View Mode: Owner vs Admin/Support
+  const [activePortalTab, setActivePortalTab] = useState<'owner' | 'admin'>('owner');
+
+  // Verification State (Defaults to 'unregistered' so portal is locked by default)
   const [verificationStatus, setVerificationStatus] =
     useState<OwnerVerificationStatus>('unregistered');
   const [claimModalVisible, setClaimModalVisible] = useState(false);
@@ -116,8 +125,18 @@ export const OwnerPortalScreen: React.FC = () => {
 
   const activeShop = shops.find((s) => s.id === selectedShopId) ?? shops[0];
 
-  // Submit Claim to Admin Review
+  // Submit Claim to Admin Review with duplicate lock
   const handleSubmitClaim = () => {
+    if (claimMode === 'claim') {
+      if (isShopClaimed(selectedShopId)) {
+        Alert.alert(
+          'Already Claimed',
+          'This café listing is already claimed or currently undergoing verification by an applicant. Please contact customer service if you are the legal owner.',
+        );
+        return;
+      }
+    }
+
     if (!ownerFullName.trim()) {
       Alert.alert('Missing Field', 'Please enter the owner full name.');
       return;
@@ -131,12 +150,35 @@ export const OwnerPortalScreen: React.FC = () => {
       return;
     }
 
+    const targetName = claimMode === 'claim' ? activeShop?.name : newCafeName;
+
+    submitClaim({
+      shopId: claimMode === 'claim' ? selectedShopId : `new-cafe-${Date.now()}`,
+      shopName: targetName || 'Specialty Café',
+      ownerFullName,
+      businessEmail,
+      phoneNumber,
+      dtiOrSecNumber,
+      permitType,
+    });
+
     setClaimModalVisible(false);
     setVerificationStatus('pending');
     Alert.alert(
       'Verification Submitted',
       'Your claim has been submitted to Admin & Customer Service. We will verify your permit details within 24-48 business hours.',
     );
+  };
+
+  const handleAdminApprove = (claimId: string, shopName: string) => {
+    approveClaim(claimId);
+    setVerificationStatus('verified');
+    Alert.alert('Claim Approved', `Ownership credentials for "${shopName}" have been verified. Verified Owner dashboard is now unlocked.`);
+  };
+
+  const handleAdminReject = (claimId: string, shopName: string) => {
+    rejectClaim(claimId, 'Permit documentation did not match local city registry records.');
+    Alert.alert('Claim Rejected', `Rejected claim for "${shopName}". Owner notified via email.`);
   };
 
   const handleSaveStatus = () => {
@@ -197,11 +239,11 @@ export const OwnerPortalScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
+      {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <Feather name="briefcase" size={20} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Owner Portal</Text>
+          <Text style={styles.headerTitle}>Owner & Business</Text>
         </View>
 
         {/* Status Badge */}
@@ -234,35 +276,50 @@ export const OwnerPortalScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Dev Mode State Switcher */}
-      <View style={styles.devBar}>
-        <Text style={styles.devBarLabel}>Status Test Mode:</Text>
+      {/* Role View Switcher (Owner Dashboard vs Admin Approval Queue) */}
+      <View style={styles.roleTabsRow}>
         <TouchableOpacity
           style={[
-            styles.devPill,
-            verificationStatus === 'unregistered' && styles.devPillActive,
+            styles.roleTab,
+            activePortalTab === 'owner' && styles.roleTabActive,
           ]}
-          onPress={() => setVerificationStatus('unregistered')}
+          onPress={() => setActivePortalTab('owner')}
         >
-          <Text style={styles.devPillText}>Locked</Text>
+          <Feather
+            name="coffee"
+            size={13}
+            color={activePortalTab === 'owner' ? '#FFFFFF' : COLORS.textSecondary}
+          />
+          <Text
+            style={[
+              styles.roleTabText,
+              activePortalTab === 'owner' && styles.roleTabTextActive,
+            ]}
+          >
+            Café Owner Portal
+          </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[
-            styles.devPill,
-            verificationStatus === 'pending' && styles.devPillActive,
+            styles.roleTab,
+            activePortalTab === 'admin' && styles.roleTabActive,
           ]}
-          onPress={() => setVerificationStatus('pending')}
+          onPress={() => setActivePortalTab('admin')}
         >
-          <Text style={styles.devPillText}>Under Review</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.devPill,
-            verificationStatus === 'verified' && styles.devPillActive,
-          ]}
-          onPress={() => setVerificationStatus('verified')}
-        >
-          <Text style={styles.devPillText}>Verified</Text>
+          <Feather
+            name="shield"
+            size={13}
+            color={activePortalTab === 'admin' ? '#FFFFFF' : COLORS.textSecondary}
+          />
+          <Text
+            style={[
+              styles.roleTabText,
+              activePortalTab === 'admin' && styles.roleTabTextActive,
+            ]}
+          >
+            Admin Verification Queue ({claimRequests.filter((c) => c.status === 'pending').length})
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -271,341 +328,441 @@ export const OwnerPortalScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* ============================================================
-            STATE 1: UNREGISTERED / VERIFICATION REQUIRED
+            TAB 1: CAFÉ OWNER VIEW
            ============================================================ */}
-        {verificationStatus === 'unregistered' && (
-          <View style={styles.unverifiedContainer}>
-            <View style={styles.lockHeroCard}>
-              <View style={styles.lockIconCircle}>
-                <Feather name="shield" size={32} color={COLORS.primary} />
+        {activePortalTab === 'owner' && (
+          <>
+            {/* STATE A: UNREGISTERED / VERIFICATION REQUIRED */}
+            {verificationStatus === 'unregistered' && (
+              <View style={styles.unverifiedContainer}>
+                <View style={styles.lockHeroCard}>
+                  <View style={styles.lockIconCircle}>
+                    <Feather name="shield" size={32} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.lockTitle}>Claim & Verify Your Café</Text>
+                  <Text style={styles.lockSubtitle}>
+                    To protect café listings, ownership must be validated by admin or customer service before live seating broadcasts and SaaS tools can be unlocked.
+                  </Text>
+
+                  <View style={styles.securityCheckpoints}>
+                    <View style={styles.checkpointRow}>
+                      <Feather name="check" size={14} color={COLORS.primary} />
+                      <Text style={styles.checkpointText}>
+                        Prevents unauthorized access & duplicate claims
+                      </Text>
+                    </View>
+                    <View style={styles.checkpointRow}>
+                      <Feather name="check" size={14} color={COLORS.primary} />
+                      <Text style={styles.checkpointText}>
+                        Validates local DTI / Mayor's Permit registration
+                      </Text>
+                    </View>
+                    <View style={styles.checkpointRow}>
+                      <Feather name="check" size={14} color={COLORS.primary} />
+                      <Text style={styles.checkpointText}>
+                        Unlocks live seating broadcast & verified badge
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.claimActionBtn}
+                    onPress={() => {
+                      setClaimMode('claim');
+                      setClaimModalVisible(true);
+                    }}
+                    activeOpacity={0.88}
+                  >
+                    <Feather name="award" size={16} color="#FFFFFF" />
+                    <Text style={styles.claimActionBtnText}>Claim Existing Café Listing</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.registerNewBtn}
+                    onPress={() => {
+                      setClaimMode('new');
+                      setClaimModalVisible(true);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.registerNewText}>Or Register a New Specialty Café ›</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={styles.lockTitle}>Claim & Verify Your Café</Text>
-              <Text style={styles.lockSubtitle}>
-                To protect café listings, ownership must be validated by admin or customer service before live seating broadcasts and SaaS tools can be unlocked.
-              </Text>
+            )}
 
-              <View style={styles.securityCheckpoints}>
-                <View style={styles.checkpointRow}>
-                  <Feather name="check" size={14} color={COLORS.primary} />
-                  <Text style={styles.checkpointText}>
-                    Prevents unauthorized access & false seating reports
-                  </Text>
+            {/* STATE B: UNDER REVIEW */}
+            {verificationStatus === 'pending' && (
+              <View style={styles.pendingCard}>
+                <View style={styles.pendingHeader}>
+                  <View style={styles.pendingIconCircle}>
+                    <Feather name="clock" size={24} color="#6E4822" />
+                  </View>
+                  <View style={styles.pendingHeaderTextCol}>
+                    <Text style={styles.pendingTitle}>Claim Under Admin Review</Text>
+                    <Text style={styles.pendingAppId}>Application ID: #CF-PH-9482</Text>
+                  </View>
                 </View>
-                <View style={styles.checkpointRow}>
-                  <Feather name="check" size={14} color={COLORS.primary} />
-                  <Text style={styles.checkpointText}>
-                    Direct DTI / Mayor Permit business validation
-                  </Text>
+
+                <Text style={styles.pendingMessage}>
+                  Your business credentials for <Text style={{ fontWeight: '700' }}>{activeShop?.name}</Text> have been received by our verification team.
+                </Text>
+
+                {/* Timeline Progress */}
+                <View style={styles.timeline}>
+                  <View style={styles.timelineStep}>
+                    <View style={[styles.timelineDot, styles.timelineDotComplete]}>
+                      <Feather name="check" size={10} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.timelineTextCol}>
+                      <Text style={styles.timelineStepTitle}>1. Application Submitted</Text>
+                      <Text style={styles.timelineStepSub}>Credentials & DTI details received</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.timelineStep}>
+                    <View style={[styles.timelineDot, styles.timelineDotActive]}>
+                      <Feather name="loader" size={10} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.timelineTextCol}>
+                      <Text style={styles.timelineStepTitle}>2. Admin & Registry Check</Text>
+                      <Text style={styles.timelineStepSub}>Currently validating permit with records</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.timelineStep}>
+                    <View style={[styles.timelineDot, styles.timelineDotPending]}>
+                      <Feather name="lock" size={10} color={COLORS.textMuted} />
+                    </View>
+                    <View style={styles.timelineTextCol}>
+                      <Text style={[styles.timelineStepTitle, { color: COLORS.textMuted }]}>
+                        3. Verified Owner Dashboard Unlock
+                      </Text>
+                      <Text style={styles.timelineStepSub}>Estimated within 24–48 hours</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.checkpointRow}>
-                  <Feather name="check" size={14} color={COLORS.primary} />
-                  <Text style={styles.checkpointText}>
-                    Free Verified Owner Badge on your public café profile
+
+                <View style={styles.supportNote}>
+                  <Feather name="info" size={13} color={COLORS.textSecondary} />
+                  <Text style={styles.supportNoteText}>
+                    Tip: Switch to the "Admin Verification Queue" tab above to test the customer service approval action!
                   </Text>
                 </View>
               </View>
+            )}
 
-              <TouchableOpacity
-                style={styles.claimActionBtn}
-                onPress={() => {
-                  setClaimMode('claim');
-                  setClaimModalVisible(true);
-                }}
-                activeOpacity={0.88}
-              >
-                <Feather name="award" size={16} color="#FFFFFF" />
-                <Text style={styles.claimActionBtnText}>Claim Existing Café Listing</Text>
-              </TouchableOpacity>
+            {/* STATE C: VERIFIED OWNER DASHBOARD */}
+            {verificationStatus === 'verified' && (
+              <>
+                {/* Verified Café Banner */}
+                <View style={styles.verifiedHeaderCard}>
+                  <View style={styles.verifiedHeaderLeft}>
+                    <View style={styles.cafeAvatarCircle}>
+                      <Feather name="coffee" size={20} color={COLORS.primary} />
+                    </View>
+                    <View>
+                      <View style={styles.verifiedNameRow}>
+                        <Text style={styles.verifiedCafeName}>{activeShop.name}</Text>
+                        <Feather name="check-circle" size={14} color={COLORS.verified} />
+                      </View>
+                      <Text style={styles.verifiedCafeAddress}>{activeShop.vicinity}</Text>
+                    </View>
+                  </View>
+                </View>
 
-              <TouchableOpacity
-                style={styles.registerNewBtn}
-                onPress={() => {
-                  setClaimMode('new');
-                  setClaimModalVisible(true);
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.registerNewText}>Or Register a New Specialty Café ›</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                {/* Live Seating Broadcast */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <Feather name="activity" size={16} color={COLORS.primary} />
+                      <Text style={styles.sectionTitle}>Broadcast Live Seating</Text>
+                    </View>
+                    <View style={styles.freeBadge}>
+                      <Text style={styles.freeBadgeText}>Live</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.helperText}>
+                    Update your live table availability to guide nearby remote workers and visitors:
+                  </Text>
+
+                  <View style={styles.statusButtonsRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.statusBtn,
+                        seatingStatus === 'available' && styles.statusBtnAvailable,
+                      ]}
+                      onPress={() => setSeatingStatus('available')}
+                    >
+                      <View style={[styles.statusDot, { backgroundColor: COLORS.success }]} />
+                      <Text style={styles.statusBtnTitle}>Plenty</Text>
+                      <Text style={styles.statusBtnSub}>Seats Open</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.statusBtn,
+                        seatingStatus === 'moderate' && styles.statusBtnModerate,
+                      ]}
+                      onPress={() => setSeatingStatus('moderate')}
+                    >
+                      <View style={[styles.statusDot, { backgroundColor: COLORS.warning }]} />
+                      <Text style={styles.statusBtnTitle}>Moderate</Text>
+                      <Text style={styles.statusBtnSub}>50% Full</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.statusBtn,
+                        seatingStatus === 'full' && styles.statusBtnFull,
+                      ]}
+                      onPress={() => setSeatingStatus('full')}
+                    >
+                      <View style={[styles.statusDot, { backgroundColor: COLORS.danger }]} />
+                      <Text style={styles.statusBtnTitle}>Busy</Text>
+                      <Text style={styles.statusBtnSub}>Few Left</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={[styles.fieldLabel, { marginTop: SPACING.sm }]}>
+                    Verified Wi-Fi Speed
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={wifiSpeed}
+                    onChangeText={setWifiSpeed}
+                    placeholder="e.g. Fast (200 Mbps+ verified)"
+                  />
+
+                  <TouchableOpacity
+                    style={styles.saveBtn}
+                    onPress={handleSaveStatus}
+                    activeOpacity={0.88}
+                  >
+                    <Feather name="check" size={15} color="#FFFFFF" />
+                    <Text style={styles.saveBtnText}>Broadcast Status Update</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Pro Feature: Hyperlocal Push Campaigns */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <Feather name="send" size={16} color={COLORS.primary} />
+                      <Text style={styles.sectionTitle}>Hyperlocal Push Notification</Text>
+                    </View>
+                    <View style={styles.proBadge}>
+                      <Text style={styles.proBadgeText}>PRO PLAN</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.helperText}>
+                    Broadcast a fresh roast drop or afternoon discount directly to coffee seekers within 3km:
+                  </Text>
+
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={pushCampaignText}
+                    onChangeText={setPushCampaignText}
+                    placeholder="e.g. Fresh batch of Sagada Arabica pour-over ready! 15% off until 3 PM."
+                    multiline
+                    numberOfLines={2}
+                  />
+
+                  <TouchableOpacity
+                    style={[
+                      styles.campaignBtn,
+                      currentPlan !== 'pro' && styles.campaignBtnLocked,
+                    ]}
+                    onPress={handleSendPushCampaign}
+                    activeOpacity={0.88}
+                  >
+                    <Feather
+                      name={currentPlan === 'pro' ? 'send' : 'lock'}
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.campaignBtnText}>
+                      {currentPlan === 'pro'
+                        ? 'Broadcast Push to Nearby Users'
+                        : 'Unlock with Pro (₱799/mo)'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Subscription Plans Section (PayMongo SaaS) */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeaderLeft}>
+                    <Feather name="layers" size={16} color={COLORS.primary} />
+                    <Text style={styles.sectionTitle}>SaaS Subscription Plans</Text>
+                  </View>
+                  <Text style={styles.helperText}>
+                    Subscribe to unlock push marketing, priority search visibility, and rich menu showcases:
+                  </Text>
+
+                  <View style={styles.plansContainer}>
+                    {PLANS.map((plan) => {
+                      const isCurrent = currentPlan === plan.id;
+                      return (
+                        <View
+                          key={plan.id}
+                          style={[
+                            styles.planCard,
+                            plan.recommended && styles.planCardRecommended,
+                            isCurrent && styles.planCardCurrent,
+                          ]}
+                        >
+                          {plan.badge && (
+                            <View style={styles.planRibbon}>
+                              <Text style={styles.planRibbonText}>{plan.badge}</Text>
+                            </View>
+                          )}
+
+                          <View style={styles.planHeader}>
+                            <Text style={styles.planName}>{plan.name}</Text>
+                            <View style={styles.planPriceRow}>
+                              <Text style={styles.planPrice}>{plan.price}</Text>
+                              <Text style={styles.planPeriod}>/{plan.period}</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.planFeaturesList}>
+                            {plan.features.map((feat, idx) => (
+                              <View key={idx} style={styles.featureRow}>
+                                <Feather name="check" size={12} color={COLORS.primary} />
+                                <Text style={styles.featureText}>{feat}</Text>
+                              </View>
+                            ))}
+                          </View>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.planCtaBtn,
+                              isCurrent && styles.planCtaCurrent,
+                              plan.recommended && !isCurrent && styles.planCtaRecommended,
+                            ]}
+                            onPress={() => {
+                              if (!isCurrent) setCheckoutPlan(plan);
+                            }}
+                            disabled={isCurrent}
+                          >
+                            <Text
+                              style={[
+                                styles.planCtaText,
+                                isCurrent && styles.planCtaTextCurrent,
+                              ]}
+                            >
+                              {isCurrent ? 'Current Plan' : `Subscribe to ${plan.name}`}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
+            )}
+          </>
         )}
 
         {/* ============================================================
-            STATE 2: APPLICATION UNDER REVIEW
+            TAB 2: ADMIN & CUSTOMER SERVICE QUEUE
            ============================================================ */}
-        {verificationStatus === 'pending' && (
-          <View style={styles.pendingCard}>
-            <View style={styles.pendingHeader}>
-              <View style={styles.pendingIconCircle}>
-                <Feather name="clock" size={24} color="#6E4822" />
-              </View>
-              <View style={styles.pendingHeaderTextCol}>
-                <Text style={styles.pendingTitle}>Claim Under Admin Review</Text>
-                <Text style={styles.pendingAppId}>Application ID: #CF-PH-9482</Text>
+        {activePortalTab === 'admin' && (
+          <View style={styles.adminContainer}>
+            <View style={styles.adminNoticeBox}>
+              <Feather name="shield" size={16} color={COLORS.primary} />
+              <View style={styles.adminNoticeTextCol}>
+                <Text style={styles.adminNoticeTitle}>Administrative Claim Gateway</Text>
+                <Text style={styles.adminNoticeSub}>
+                  Customer Service portal to validate DTI / SEC permits and approve verified ownership.
+                </Text>
               </View>
             </View>
 
-            <Text style={styles.pendingMessage}>
-              Your business credentials for <Text style={{ fontWeight: '700' }}>{activeShop?.name}</Text> have been received by our verification team.
+            <Text style={styles.adminQueueHeading}>
+              Submitted Applications ({claimRequests.length})
             </Text>
 
-            {/* Timeline Progress */}
-            <View style={styles.timeline}>
-              <View style={styles.timelineStep}>
-                <View style={[styles.timelineDot, styles.timelineDotComplete]}>
-                  <Feather name="check" size={10} color="#FFFFFF" />
-                </View>
-                <View style={styles.timelineTextCol}>
-                  <Text style={styles.timelineStepTitle}>1. Application Submitted</Text>
-                  <Text style={styles.timelineStepSub}>Credentials & DTI details received</Text>
-                </View>
+            {claimRequests.length === 0 ? (
+              <View style={styles.emptyAdminBox}>
+                <Text style={styles.emptyAdminText}>No claim applications submitted yet.</Text>
               </View>
+            ) : (
+              claimRequests.map((claim) => {
+                const isPending = claim.status === 'pending';
+                const isApproved = claim.status === 'verified';
 
-              <View style={styles.timelineStep}>
-                <View style={[styles.timelineDot, styles.timelineDotActive]}>
-                  <Feather name="loader" size={10} color="#FFFFFF" />
-                </View>
-                <View style={styles.timelineTextCol}>
-                  <Text style={styles.timelineStepTitle}>2. Admin & Registry Check</Text>
-                  <Text style={styles.timelineStepSub}>Currently validating permit with records</Text>
-                </View>
-              </View>
-
-              <View style={styles.timelineStep}>
-                <View style={[styles.timelineDot, styles.timelineDotPending]}>
-                  <Feather name="lock" size={10} color={COLORS.textMuted} />
-                </View>
-                <View style={styles.timelineTextCol}>
-                  <Text style={[styles.timelineStepTitle, { color: COLORS.textMuted }]}>
-                    3. Verified Owner Dashboard Unlock
-                  </Text>
-                  <Text style={styles.timelineStepSub}>Estimated within 24–48 hours</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.supportNote}>
-              <Feather name="info" size={13} color={COLORS.textSecondary} />
-              <Text style={styles.supportNoteText}>
-                Need expedited verification? Contact support@coffeefinder.ph with your application ID.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ============================================================
-            STATE 3: VERIFIED OWNER DASHBOARD & SAAS
-           ============================================================ */}
-        {verificationStatus === 'verified' && (
-          <>
-            {/* Managed Café Banner */}
-            <View style={styles.verifiedHeaderCard}>
-              <View style={styles.verifiedHeaderLeft}>
-                <View style={styles.cafeAvatarCircle}>
-                  <Feather name="coffee" size={20} color={COLORS.primary} />
-                </View>
-                <View>
-                  <View style={styles.verifiedNameRow}>
-                    <Text style={styles.verifiedCafeName}>{activeShop.name}</Text>
-                    <Feather name="check-circle" size={14} color={COLORS.verified} />
-                  </View>
-                  <Text style={styles.verifiedCafeAddress}>{activeShop.vicinity}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Live Seating Broadcast (Core SaaS) */}
-            <View style={styles.card}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionHeaderLeft}>
-                  <Feather name="activity" size={16} color={COLORS.primary} />
-                  <Text style={styles.sectionTitle}>Broadcast Live Seating</Text>
-                </View>
-                <View style={styles.freeBadge}>
-                  <Text style={styles.freeBadgeText}>Live</Text>
-                </View>
-              </View>
-
-              <Text style={styles.helperText}>
-                Update your live table availability to guide nearby remote workers and visitors:
-              </Text>
-
-              <View style={styles.statusButtonsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.statusBtn,
-                    seatingStatus === 'available' && styles.statusBtnAvailable,
-                  ]}
-                  onPress={() => setSeatingStatus('available')}
-                >
-                  <View style={[styles.statusDot, { backgroundColor: COLORS.success }]} />
-                  <Text style={styles.statusBtnTitle}>Plenty</Text>
-                  <Text style={styles.statusBtnSub}>Seats Open</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.statusBtn,
-                    seatingStatus === 'moderate' && styles.statusBtnModerate,
-                  ]}
-                  onPress={() => setSeatingStatus('moderate')}
-                >
-                  <View style={[styles.statusDot, { backgroundColor: COLORS.warning }]} />
-                  <Text style={styles.statusBtnTitle}>Moderate</Text>
-                  <Text style={styles.statusBtnSub}>50% Full</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.statusBtn,
-                    seatingStatus === 'full' && styles.statusBtnFull,
-                  ]}
-                  onPress={() => setSeatingStatus('full')}
-                >
-                  <View style={[styles.statusDot, { backgroundColor: COLORS.danger }]} />
-                  <Text style={styles.statusBtnTitle}>Busy</Text>
-                  <Text style={styles.statusBtnSub}>Few Left</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={[styles.fieldLabel, { marginTop: SPACING.sm }]}>
-                Verified Wi-Fi Speed
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={wifiSpeed}
-                onChangeText={setWifiSpeed}
-                placeholder="e.g. Fast (200 Mbps+ verified)"
-              />
-
-              <TouchableOpacity
-                style={styles.saveBtn}
-                onPress={handleSaveStatus}
-                activeOpacity={0.88}
-              >
-                <Feather name="check" size={15} color="#FFFFFF" />
-                <Text style={styles.saveBtnText}>Broadcast Status Update</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Pro Feature: Hyperlocal Push Campaigns */}
-            <View style={styles.card}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionHeaderLeft}>
-                  <Feather name="send" size={16} color={COLORS.primary} />
-                  <Text style={styles.sectionTitle}>Hyperlocal Push Notification</Text>
-                </View>
-                <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>PRO PLAN</Text>
-                </View>
-              </View>
-
-              <Text style={styles.helperText}>
-                Broadcast a fresh roast drop or afternoon discount directly to coffee seekers within 3km:
-              </Text>
-
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={pushCampaignText}
-                onChangeText={setPushCampaignText}
-                placeholder="e.g. Fresh batch of Sagada Arabica pour-over ready! 15% off until 3 PM."
-                multiline
-                numberOfLines={2}
-              />
-
-              <TouchableOpacity
-                style={[
-                  styles.campaignBtn,
-                  currentPlan !== 'pro' && styles.campaignBtnLocked,
-                ]}
-                onPress={handleSendPushCampaign}
-                activeOpacity={0.88}
-              >
-                <Feather
-                  name={currentPlan === 'pro' ? 'send' : 'lock'}
-                  size={14}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.campaignBtnText}>
-                  {currentPlan === 'pro'
-                    ? 'Broadcast Push to Nearby Users'
-                    : 'Unlock with Pro (₱799/mo)'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Subscription Plans Section (PayMongo SaaS) */}
-            <View style={styles.card}>
-              <View style={styles.sectionHeaderLeft}>
-                <Feather name="layers" size={16} color={COLORS.primary} />
-                <Text style={styles.sectionTitle}>SaaS Subscription Plans</Text>
-              </View>
-              <Text style={styles.helperText}>
-                Subscribe to unlock push marketing, priority search visibility, and rich menu showcases:
-              </Text>
-
-              <View style={styles.plansContainer}>
-                {PLANS.map((plan) => {
-                  const isCurrent = currentPlan === plan.id;
-                  return (
-                    <View
-                      key={plan.id}
-                      style={[
-                        styles.planCard,
-                        plan.recommended && styles.planCardRecommended,
-                        isCurrent && styles.planCardCurrent,
-                      ]}
-                    >
-                      {plan.badge && (
-                        <View style={styles.planRibbon}>
-                          <Text style={styles.planRibbonText}>{plan.badge}</Text>
-                        </View>
-                      )}
-
-                      <View style={styles.planHeader}>
-                        <Text style={styles.planName}>{plan.name}</Text>
-                        <View style={styles.planPriceRow}>
-                          <Text style={styles.planPrice}>{plan.price}</Text>
-                          <Text style={styles.planPeriod}>/{plan.period}</Text>
-                        </View>
+                return (
+                  <View key={claim.id} style={styles.adminClaimCard}>
+                    <View style={styles.adminClaimHeader}>
+                      <View>
+                        <Text style={styles.adminShopName}>{claim.shopName}</Text>
+                        <Text style={styles.adminSubmittedAt}>Submitted: {claim.submittedAt}</Text>
                       </View>
-
-                      <View style={styles.planFeaturesList}>
-                        {plan.features.map((feat, idx) => (
-                          <View key={idx} style={styles.featureRow}>
-                            <Feather name="check" size={12} color={COLORS.primary} />
-                            <Text style={styles.featureText}>{feat}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <TouchableOpacity
+                      <View
                         style={[
-                          styles.planCtaBtn,
-                          isCurrent && styles.planCtaCurrent,
-                          plan.recommended && !isCurrent && styles.planCtaRecommended,
+                          styles.claimStatusTag,
+                          isApproved ? styles.claimTagApproved : isPending ? styles.claimTagPending : styles.claimTagRejected,
                         ]}
-                        onPress={() => {
-                          if (!isCurrent) setCheckoutPlan(plan);
-                        }}
-                        disabled={isCurrent}
                       >
                         <Text
                           style={[
-                            styles.planCtaText,
-                            isCurrent && styles.planCtaTextCurrent,
+                            styles.claimStatusTagText,
+                            isApproved ? styles.claimTextApproved : isPending ? styles.claimTextPending : styles.claimTextRejected,
                           ]}
                         >
-                          {isCurrent ? 'Current Plan' : `Subscribe to ${plan.name}`}
+                          {claim.status.toUpperCase()}
                         </Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
-                  );
-                })}
-              </View>
-            </View>
-          </>
+
+                    {/* Applicant & Business Credentials */}
+                    <View style={styles.credentialGrid}>
+                      <View style={styles.credItem}>
+                        <Text style={styles.credLabel}>Applicant</Text>
+                        <Text style={styles.credValue}>{claim.ownerFullName}</Text>
+                      </View>
+                      <View style={styles.credItem}>
+                        <Text style={styles.credLabel}>Contact Email</Text>
+                        <Text style={styles.credValue}>{claim.businessEmail}</Text>
+                      </View>
+                      <View style={styles.credItem}>
+                        <Text style={styles.credLabel}>Phone Number</Text>
+                        <Text style={styles.credValue}>{claim.phoneNumber}</Text>
+                      </View>
+                      <View style={styles.credItem}>
+                        <Text style={styles.credLabel}>{claim.permitType}</Text>
+                        <Text style={styles.credValue}>{claim.dtiOrSecNumber}</Text>
+                      </View>
+                    </View>
+
+                    {/* Action Row for Admin */}
+                    {isPending && (
+                      <View style={styles.adminActionRow}>
+                        <TouchableOpacity
+                          style={styles.adminRejectBtn}
+                          onPress={() => handleAdminReject(claim.id, claim.shopName)}
+                        >
+                          <Feather name="x" size={13} color={COLORS.danger} />
+                          <Text style={styles.adminRejectText}>Reject</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.adminApproveBtn}
+                          onPress={() => handleAdminApprove(claim.id, claim.shopName)}
+                        >
+                          <Feather name="check" size={13} color="#FFFFFF" />
+                          <Text style={styles.adminApproveText}>Approve & Grant Ownership</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -638,25 +795,33 @@ export const OwnerPortalScreen: React.FC = () => {
                 <>
                   <Text style={styles.fieldLabel}>Select Café to Claim</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modalShopChips}>
-                    {shops.map((s) => (
-                      <TouchableOpacity
-                        key={s.id}
-                        style={[
-                          styles.modalChip,
-                          selectedShopId === s.id && styles.modalChipActive,
-                        ]}
-                        onPress={() => setSelectedShopId(s.id)}
-                      >
-                        <Text
+                    {shops.map((s) => {
+                      const isClaimed = isShopClaimed(s.id);
+                      const isSelected = selectedShopId === s.id;
+
+                      return (
+                        <TouchableOpacity
+                          key={s.id}
+                          disabled={isClaimed}
                           style={[
-                            styles.modalChipText,
-                            selectedShopId === s.id && styles.modalChipTextActive,
+                            styles.modalChip,
+                            isSelected && styles.modalChipActive,
+                            isClaimed && styles.modalChipDisabled,
                           ]}
+                          onPress={() => setSelectedShopId(s.id)}
                         >
-                          {s.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                          <Text
+                            style={[
+                              styles.modalChipText,
+                              isSelected && styles.modalChipTextActive,
+                              isClaimed && styles.modalChipTextDisabled,
+                            ]}
+                          >
+                            {s.name} {isClaimed ? '(Locked)' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
                 </>
               ) : (
@@ -741,7 +906,7 @@ export const OwnerPortalScreen: React.FC = () => {
               {/* Document Upload Button */}
               <TouchableOpacity
                 style={styles.docUploadBox}
-                onPress={() => Alert.alert('Permit Attached', 'Business permit photo attached.')}
+                onPress={() => Alert.alert('Permit Attached', 'Business permit document photo attached.')}
                 activeOpacity={0.8}
               >
                 <Feather name="file-text" size={20} color={COLORS.primary} />
@@ -893,35 +1058,34 @@ const styles = StyleSheet.create({
   statusTextUnregistered: {
     color: COLORS.danger,
   },
-  devBar: {
+  roleTabsRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceWarm,
+    padding: 3,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  roleTab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceWarm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    gap: 5,
   },
-  devBarLabel: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  devPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  devPillActive: {
+  roleTabActive: {
     backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
   },
-  devPillText: {
-    fontSize: 10.5,
+  roleTabText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  roleTabTextActive: {
+    color: '#FFFFFF',
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -929,7 +1093,7 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
   },
   unverifiedContainer: {
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.xs,
   },
   lockHeroCard: {
     backgroundColor: COLORS.surface,
@@ -1376,6 +1540,141 @@ const styles = StyleSheet.create({
   planCtaTextCurrent: {
     color: COLORS.textMuted,
   },
+  adminContainer: {
+    gap: SPACING.md,
+  },
+  adminNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSage,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+    gap: SPACING.sm,
+  },
+  adminNoticeTextCol: {
+    flex: 1,
+  },
+  adminNoticeTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  adminNoticeSub: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  adminQueueHeading: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 4,
+  },
+  emptyAdminBox: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+  },
+  emptyAdminText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  adminClaimCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    borderWidth: 1.2,
+    borderColor: COLORS.border,
+    gap: SPACING.sm,
+  },
+  adminClaimHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  adminShopName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  adminSubmittedAt: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  claimStatusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  claimTagApproved: { backgroundColor: '#E8F6ED' },
+  claimTagPending: { backgroundColor: '#FEF8E7' },
+  claimTagRejected: { backgroundColor: '#FDEDEC' },
+  claimStatusTagText: { fontSize: 9.5, fontWeight: '800' },
+  claimTextApproved: { color: COLORS.verified },
+  claimTextPending: { color: '#D35400' },
+  claimTextRejected: { color: COLORS.danger },
+  credentialGrid: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm + 2,
+    gap: 5,
+  },
+  credItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  credLabel: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  credValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  adminActionRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: 4,
+  },
+  adminRejectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FADBD8',
+    backgroundColor: '#FDEDEC',
+    gap: 4,
+  },
+  adminRejectText: {
+    color: COLORS.danger,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  adminApproveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary,
+    gap: 4,
+  },
+  adminApproveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
@@ -1427,6 +1726,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
+  modalChipDisabled: {
+    opacity: 0.45,
+    backgroundColor: COLORS.borderLight,
+  },
   modalChipText: {
     fontSize: 12,
     fontWeight: '600',
@@ -1434,6 +1737,9 @@ const styles = StyleSheet.create({
   },
   modalChipTextActive: {
     color: '#FFFFFF',
+  },
+  modalChipTextDisabled: {
+    color: COLORS.textMuted,
   },
   permitTypeRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 // ============================================================
-// FilterBar — Icon-based Specialty Filter Chips
+// FilterBar — Icon-based Specialty & Price Tier Filter Chips
 // ============================================================
 
 import React from 'react';
@@ -7,17 +7,27 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SPECIALTY_CATEGORIES } from '@constants';
 import { useStore } from '@store/useStore';
-import type { CategoryFilter } from '@types';
+import type { CategoryFilter, PriceTierFilter } from '@types';
 
 export const FilterBar: React.FC = () => {
   const activeCategory = useStore((s) => s.filters.activeCategory);
+  const priceTier = useStore((s) => s.filters.priceTier);
   const setCategory = useStore((s) => s.setCategory);
+  const setPriceTier = useStore((s) => s.setPriceTier);
 
-  const handlePress = (id: string) => {
-    if (activeCategory === id) {
-      setCategory('all');
+  const handlePress = (cat: (typeof SPECIALTY_CATEGORIES)[0]) => {
+    if (cat.isPrice && cat.tier) {
+      if (priceTier === cat.tier) {
+        setPriceTier('all');
+      } else {
+        setPriceTier(cat.tier as PriceTierFilter);
+      }
     } else {
-      setCategory(id as CategoryFilter);
+      if (activeCategory === cat.id) {
+        setCategory('all');
+      } else {
+        setCategory(cat.id as CategoryFilter);
+      }
     }
   };
 
@@ -29,17 +39,20 @@ export const FilterBar: React.FC = () => {
         contentContainerStyle={styles.scroll}
       >
         {SPECIALTY_CATEGORIES.map((cat) => {
-          const isActive = activeCategory === cat.id;
+          const isActive = cat.isPrice
+            ? priceTier === cat.tier
+            : activeCategory === cat.id;
+
           return (
             <TouchableOpacity
               key={cat.id}
               style={[styles.chip, isActive && styles.chipActive]}
-              onPress={() => handlePress(cat.id)}
+              onPress={() => handlePress(cat)}
               activeOpacity={0.8}
             >
               <Feather
                 name={cat.icon as any}
-                size={13}
+                size={12.5}
                 color={isActive ? COLORS.surface : COLORS.textSecondary}
                 style={styles.chipIcon}
               />
@@ -56,12 +69,12 @@ export const FilterBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    height: 48,
-    marginVertical: 4,
+    height: 44,
+    marginVertical: 2,
   },
   scroll: {
-    paddingHorizontal: SPACING.md,
-    gap: SPACING.xs + 2,
+    paddingRight: SPACING.md,
+    gap: 6,
     alignItems: 'center',
   },
   chip: {
@@ -69,11 +82,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderWidth: 1.2,
     borderColor: COLORS.border,
-    gap: 5,
+    gap: 4,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -88,7 +101,7 @@ const styles = StyleSheet.create({
     marginTop: 0.5,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.textPrimary,
   },

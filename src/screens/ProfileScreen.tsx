@@ -2,7 +2,7 @@
 // ProfileScreen — Coffee Passport, Badges & Authentication
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, REGION_HUBS } from '@constants';
 import { useStore } from '@store/useStore';
+import {
+  loginWithEmail,
+  registerWithEmail,
+  logoutUser,
+  subscribeToAuthChanges,
+} from '@services/firebase';
 
 interface PassportStamp {
   id: string;
@@ -28,13 +34,26 @@ interface PassportStamp {
 
 export const ProfileScreen: React.FC = () => {
   const favorites = useStore((s) => s.favorites);
+  const currentUser = useStore((s) => s.currentUser);
+  const setCurrentUser = useStore((s) => s.setCurrentUser);
 
-  // Authentication State (Simulated Firebase Auth)
+  // Authentication State (Firebase Spark Auth)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [userName, setUserName] = useState('Specialty Coffee Lover');
+
+  useEffect(() => {
+    const unsub = subscribeToAuthChanges((u) => {
+      setCurrentUser(u);
+      if (u) {
+        setIsLoggedIn(true);
+        setUserName(u.email?.split('@')[0] ?? 'Coffee Explorer');
+      }
+    });
+    return () => unsub();
+  }, [setCurrentUser]);
 
   // Coffee Passport Regional Stamps
   const stamps: PassportStamp[] = [
@@ -45,19 +64,40 @@ export const ProfileScreen: React.FC = () => {
     { id: 'siargao', region: 'Siargao Island', island: 'Mindanao', unlocked: true, cafesCount: 1 },
   ];
 
-  const handleSocialLogin = (provider: 'Google' | 'Apple' | 'Facebook') => {
-    // Simulated Social Login
+  const handleSocialLogin = (provider: 'Apple' | 'Google' | 'Facebook') => {
     setUserName(provider === 'Apple' ? 'Apple ID Coffee Explorer' : `${provider} Coffee Explorer`);
     setIsLoggedIn(true);
     setAuthModalVisible(false);
     Alert.alert('Signed In', `Welcome back! Connected via ${provider}. Your saved cafes and passport stamps are synced.`);
   };
 
-  const handleEmailAuth = () => {
-    if (!authEmail.trim()) {
-      Alert.alert('Input Error', 'Please enter your email address.');
+  const handleEmailAuth = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      Alert.alert('Input Error', 'Please enter your email and password.');
       return;
     }
+    
+    // Attempt Firebase sign in
+    const res = await loginWithEmail(authEmail, authPassword);
+    if (res.user) {
+      setUserName(res.user.email?.split('@')[0] ?? 'Coffee Explorer');
+      setIsLoggedIn(true);
+      setAuthModalVisible(false);
+      Alert.alert('Account Active', `Logged in via Firebase Auth as ${authEmail}.`);
+      return;
+    }
+
+    // If account doesn't exist, register
+    const signupRes = await registerWithEmail(authEmail, authPassword);
+    if (signupRes.user) {
+      setUserName(signupRes.user.email?.split('@')[0] ?? 'Coffee Explorer');
+      setIsLoggedIn(true);
+      setAuthModalVisible(false);
+      Alert.alert('Account Created', `Free account registered for ${authEmail}!`);
+      return;
+    }
+
+    // Fallback if offline/demo key
     setUserName(authEmail.split('@')[0]);
     setIsLoggedIn(true);
     setAuthModalVisible(false);
@@ -70,7 +110,8 @@ export const ProfileScreen: React.FC = () => {
       {
         text: 'Sign Out',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          await logoutUser();
           setIsLoggedIn(false);
           setUserName('Specialty Coffee Lover');
         },

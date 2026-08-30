@@ -1,5 +1,5 @@
 // ============================================================
-// Zustand Global Store — Specialty Coffee Edition (Features 1, 2, 3, 4)
+// Zustand Global Store — Specialty Coffee Edition (With Claims & Price Tiers)
 // ============================================================
 
 import { create } from 'zustand';
@@ -12,15 +12,25 @@ import type {
   TastingNote,
   RegionHub,
   MapTypeOption,
+  OwnerClaimRequest,
+  PriceTierFilter,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
 import { REGION_HUBS } from '@constants';
+import {
+  submitClaimToFirestore,
+  approveClaimInFirestore,
+  rejectClaimInFirestore,
+  subscribeToFirestoreClaims,
+} from '@services/firebase';
+import type { User } from 'firebase/auth';
 
 const FAVORITES_KEY = '@coffee_finder:favorites_v2';
 const TASTING_NOTES_KEY = '@coffee_finder:tasting_notes_v2';
 const CACHED_SHOPS_KEY = '@coffee_finder:cached_shops_v2';
 const MAP_TYPE_KEY = '@coffee_finder:map_type_v1';
+const CLAIMS_KEY = '@coffee_finder:claims_v1';
 
 interface AppState {
   // ---- location & regional hubs ----
@@ -33,6 +43,8 @@ interface AppState {
 
   // ---- in-app map navigation mode ----
   activeNavigationShop: CoffeeShop | null;
+  navigationMode: 'walking' | 'driving';
+  setNavigationMode: (mode: 'walking' | 'driving') => void;
   startNavigation: (shop: CoffeeShop) => void;
   stopNavigation: () => void;
 
@@ -51,15 +63,29 @@ interface AppState {
   filters: Filters;
   setFilters: (filters: Partial<Filters>) => void;
   setCategory: (category: Filters['activeCategory']) => void;
+  setPriceTier: (tier: PriceTierFilter) => void;
   setSearchQuery: (query: string) => void;
   toggleGcashOnly: () => void;
   applyFilters: () => void;
 
   // ---- community tasting notes ----
-  customTastingNotes: Record<string, TastingNote[]>; // shopId -> notes
+  customTastingNotes: Record<string, TastingNote[]>;
   loadTastingNotes: () => Promise<void>;
   addTastingNote: (note: Omit<TastingNote, 'id' | 'createdAt'>) => Promise<void>;
   getShopTastingNotes: (shopId: string) => TastingNote[];
+
+  // ---- user & auth ----
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+
+  // ---- owner claims & admin verification ----
+  claimRequests: OwnerClaimRequest[];
+  verifiedOwnerShopIds: string[];
+  loadClaims: () => Promise<void>;
+  submitClaim: (request: Omit<OwnerClaimRequest, 'id' | 'submittedAt' | 'status'>) => void;
+  approveClaim: (claimId: string) => void;
+  rejectClaim: (claimId: string, reason: string) => void;
+  isShopClaimed: (shopId: string) => boolean;
 
   // ---- owner portal (SaaS live updates) ----
   updateShopLiveStatus: (
@@ -102,6 +128,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   // ---- In-App Map Navigation Mode ----
   activeNavigationShop: null,
+  navigationMode: 'walking',
+  setNavigationMode: (mode) => set({ navigationMode: mode }),
   startNavigation: (shop) => set({ activeNavigationShop: shop, selectedShop: shop }),
   stopNavigation: () => set({ activeNavigationShop: null }),
 
@@ -117,12 +145,10 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const shops = await searchNearbyCoffee(loc, get().filters);
       set({ shops, isLoading: false, isOffline: false });
-      // Cache locally for 100% offline browsing
       try {
         await AsyncStorage.setItem(CACHED_SHOPS_KEY, JSON.stringify(shops));
       } catch {}
     } catch {
-      // Load offline cache
       try {
         const cached = await AsyncStorage.getItem(CACHED_SHOPS_KEY);
         if (cached) {
@@ -140,22 +166,37 @@ export const useStore = create<AppState>((set, get) => ({
 
   // ---- filters ----
   filters: DEFAULT_FILTERS,
-  setFilters: (partial) => {
-    set((s) => ({ filters: { ...s.filters, ...partial } }));
-    get().applyFilters();
+
+  setFilters: (newFilters) => {
+    const filters = { ...get().filters, ...newFilters };
+    set({ filters });
+    get().fetchNearbyShops();
   },
+
   setCategory: (activeCategory) => {
-    set((s) => ({ filters: { ...s.filters, activeCategory } }));
-    get().applyFilters();
+    const filters = { ...get().filters, activeCategory };
+    set({ filters });
+    get().fetchNearbyShops();
   },
+
+  setPriceTier: (priceTier) => {
+    const filters = { ...get().filters, priceTier };
+    set({ filters });
+    get().fetchNearbyShops();
+  },
+
   setSearchQuery: (searchQuery) => {
-    set((s) => ({ filters: { ...s.filters, searchQuery } }));
-    get().applyFilters();
+    const filters = { ...get().filters, searchQuery };
+    set({ filters });
+    get().fetchNearbyShops();
   },
+
   toggleGcashOnly: () => {
-    set((s) => ({ filters: { ...s.filters, gcashOnly: !s.filters.gcashOnly } }));
-    get().applyFilters();
+    const filters = { ...get().filters, gcashOnly: !get().filters.gcashOnly };
+    set({ filters });
+    get().fetchNearbyShops();
   },
+
   applyFilters: () => {
     const loc = get().userLocation;
     get().fetchNearbyShops(loc);
@@ -171,6 +212,8 @@ export const useStore = create<AppState>((set, get) => ({
 
       const savedMapType = await AsyncStorage.getItem(MAP_TYPE_KEY);
       if (savedMapType) set({ mapType: savedMapType as MapTypeOption });
+
+      get().loadClaims();
     } catch {}
   },
 
@@ -198,6 +241,109 @@ export const useStore = create<AppState>((set, get) => ({
     const builtIn = shop?.tastingNotes ?? [];
     const userAdded = get().customTastingNotes[shopId] ?? [];
     return [...userAdded, ...builtIn];
+  },
+
+  // ---- user & auth ----
+  currentUser: null,
+  setCurrentUser: (user) => set({ currentUser: user }),
+
+  // ---- owner claims & admin verification ----
+  claimRequests: [
+    {
+      id: 'claim-init-1',
+      shopId: 'ph-yardstick-coffee',
+      shopName: 'Yardstick Coffee',
+      ownerFullName: 'Andre Chanco',
+      businessEmail: 'andre@yardstickcoffee.com',
+      phoneNumber: '+63 917 888 1234',
+      dtiOrSecNumber: 'DTI-NCR-2023-991204',
+      permitType: 'DTI Registration',
+      submittedAt: 'Yesterday, 3:15 PM',
+      status: 'pending',
+    },
+  ],
+  verifiedOwnerShopIds: ['ph-chapter-coffee'],
+
+  loadClaims: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(CLAIMS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        set({ claimRequests: saved });
+      }
+
+      // Listen for real-time Cloud Firestore updates (Free Spark plan)
+      subscribeToFirestoreClaims((cloudClaims) => {
+        if (cloudClaims && cloudClaims.length > 0) {
+          set({ claimRequests: cloudClaims });
+        }
+      });
+    } catch {}
+  },
+
+  submitClaim: (reqData) => {
+    const newClaim: OwnerClaimRequest = {
+      ...reqData,
+      id: `claim-${Date.now()}`,
+      submittedAt: 'Just now',
+      status: 'pending',
+    };
+    const updated = [newClaim, ...get().claimRequests];
+    set({ claimRequests: updated });
+    try {
+      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
+      // Cloud Firestore sync (runs safely in background)
+      submitClaimToFirestore(newClaim).catch(() => {});
+    } catch {}
+  },
+
+  approveClaim: (claimId) => {
+    const updated = get().claimRequests.map((c) =>
+      c.id === claimId
+        ? {
+            ...c,
+            status: 'verified' as const,
+            reviewedAt: 'Just now',
+          }
+        : c,
+    );
+    const approved = get().claimRequests.find((c) => c.id === claimId);
+    const verifiedShopIds = approved
+      ? [...new Set([...get().verifiedOwnerShopIds, approved.shopId])]
+      : get().verifiedOwnerShopIds;
+
+    set({ claimRequests: updated, verifiedOwnerShopIds: verifiedShopIds });
+    try {
+      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
+      // Cloud Firestore sync
+      approveClaimInFirestore(claimId).catch(() => {});
+    } catch {}
+  },
+
+  rejectClaim: (claimId, reason) => {
+    const updated = get().claimRequests.map((c) =>
+      c.id === claimId
+        ? {
+            ...c,
+            status: 'rejected' as const,
+            rejectionReason: reason,
+            reviewedAt: 'Just now',
+          }
+        : c,
+    );
+    set({ claimRequests: updated });
+    try {
+      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
+      // Cloud Firestore sync
+      rejectClaimInFirestore(claimId, reason).catch(() => {});
+    } catch {}
+  },
+
+  isShopClaimed: (shopId: string) => {
+    return (
+      get().verifiedOwnerShopIds.includes(shopId) ||
+      get().claimRequests.some((c) => c.shopId === shopId && c.status === 'pending')
+    );
   },
 
   // ---- owner portal SaaS update ----

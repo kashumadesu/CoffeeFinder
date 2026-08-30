@@ -12,6 +12,7 @@ import {
   Linking,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -28,7 +29,6 @@ import { PhotoMosaic } from '@components/PhotoMosaic';
 import { TastingNotesSection } from '@components/TastingNotesSection';
 import type { CoffeeShop, RootStackParamList } from '@types';
 
-
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
 type Nav = StackNavigationProp<RootStackParamList, 'ShopDetail'>;
 
@@ -39,6 +39,8 @@ export const DetailScreen: React.FC = () => {
 
   const [shop, setShop] = useState<CoffeeShop>(initialShop);
   const [hoursExpanded, setHoursExpanded] = useState(false);
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
+  const [menuActiveCategory, setMenuActiveCategory] = useState<string>('All');
 
   const { toggleFavorite, isFavorite } = useFavorites();
   const startNavigation = useStore((s) => s.startNavigation);
@@ -235,6 +237,19 @@ export const DetailScreen: React.FC = () => {
                     ))}
                   </View>
                 )}
+
+                {shop.fullMenu && shop.fullMenu.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.viewFullMenuBtn}
+                    onPress={() => setMenuModalVisible(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.viewFullMenuText}>
+                      View Full Drink Menu ({shop.fullMenu.length} items)
+                    </Text>
+                    <Feather name="chevron-right" size={13} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -346,6 +361,81 @@ export const DetailScreen: React.FC = () => {
           <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Full Digital Drink Menu Modal */}
+      <Modal
+        visible={menuModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuModalVisible(false)}
+      >
+        <View style={styles.menuModalOverlay}>
+          <View style={styles.menuModalSheet}>
+            <View style={styles.menuModalHeader}>
+              <View>
+                <Text style={styles.menuModalTitle}>{shop.name}</Text>
+                <Text style={styles.menuModalSub}>Specialty Beverage & Brew Menu</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setMenuModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="x" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Category Filter Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.menuCategoryTabs}
+              contentContainerStyle={styles.menuCategoryTabsContent}
+            >
+              {['All', 'Espresso Bar', 'Filter & Pour-Over', 'Milk Coffee', 'Signatures & Cold'].map(
+                (cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.menuCategoryPill,
+                      menuActiveCategory === cat && styles.menuCategoryPillActive,
+                    ]}
+                    onPress={() => setMenuActiveCategory(cat)}
+                  >
+                    <Text
+                      style={[
+                        styles.menuCategoryPillText,
+                        menuActiveCategory === cat && styles.menuCategoryPillTextActive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ),
+              )}
+            </ScrollView>
+
+            {/* Drink List */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.menuItemsList}>
+              {(shop.fullMenu ?? [])
+                .filter((item) => menuActiveCategory === 'All' || item.category === menuActiveCategory)
+                .map((item, idx) => (
+                  <View key={idx} style={styles.fullMenuItemCard}>
+                    <View style={styles.fullMenuItemTop}>
+                      <Text style={styles.fullMenuItemName}>{item.name}</Text>
+                      <Text style={styles.fullMenuItemPrice}>₱{item.price}</Text>
+                    </View>
+                    {item.description && (
+                      <Text style={styles.fullMenuItemDesc}>{item.description}</Text>
+                    )}
+                    <View style={styles.itemCategoryBadge}>
+                      <Text style={styles.itemCategoryBadgeText}>{item.category}</Text>
+                    </View>
+                  </View>
+                ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -707,5 +797,125 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#A88B70',
     fontWeight: '300',
+  },
+  viewFullMenuBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(42, 71, 54, 0.15)',
+  },
+  viewFullMenuText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'flex-end',
+  },
+  menuModalSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    maxHeight: '85%',
+    gap: SPACING.sm,
+  },
+  menuModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  menuModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  menuModalSub: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  menuCategoryTabs: {
+    marginVertical: 4,
+  },
+  menuCategoryTabsContent: {
+    gap: 6,
+    paddingRight: SPACING.md,
+  },
+  menuCategoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  menuCategoryPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  menuCategoryPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  menuCategoryPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  menuItemsList: {
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    paddingBottom: 30,
+  },
+  fullMenuItemCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm + 4,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    gap: 4,
+  },
+  fullMenuItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fullMenuItemName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  fullMenuItemPrice: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  fullMenuItemDesc: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    lineHeight: 16,
+  },
+  itemCategoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.surfaceSage,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  itemCategoryBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
 });

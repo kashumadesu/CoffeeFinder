@@ -1,5 +1,5 @@
 // ============================================================
-// constants/index.ts — App Constants (Icons + Data)
+// constants/index.ts — App Constants (Icons, Data & Full Menus)
 // ============================================================
 
 import { GOOGLE_MAPS_API_KEY } from '@env';
@@ -139,13 +139,15 @@ export const DELTA = {
 export const SEARCH_KEYWORD = 'specialty coffee shop';
 export const PLACE_TYPES = 'cafe';
 
-// ---- Specialty Filter Chips ----
+// ---- Specialty & Price Filter Chips ----
 export const SPECIALTY_CATEGORIES = [
   { id: 'specialty', label: 'Specialty', icon: 'coffee' },
+  { id: 'budget', label: 'Budget <₱150', icon: 'tag', isPrice: true, tier: 'budget' },
+  { id: 'mid', label: '₱150–₱250', icon: 'tag', isPrice: true, tier: 'mid' },
+  { id: 'reserve', label: 'Reserve ₱250+', icon: 'award', isPrice: true, tier: 'reserve' },
   { id: 'outlets', label: 'Outlets', icon: 'zap' },
   { id: 'alfresco', label: 'Al Fresco', icon: 'sun' },
   { id: 'petFriendly', label: 'Pet Friendly', icon: 'heart' },
-  { id: 'new', label: 'New', icon: 'star' },
   { id: 'fastWifi', label: 'Fast Wi-Fi', icon: 'wifi' },
 ];
 
@@ -169,7 +171,7 @@ export const PRICE_LABELS: Record<number, string> = {
   4: '₱₱₱₱',
 };
 
-// ---- Rich Philippine Specialty Dataset with Price Ranges & Menu Highlights ----
+// ---- Rich Philippine Specialty Dataset with Full Categorized Menus ----
 export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
   {
     id: 'ph-chapter-coffee',
@@ -184,10 +186,23 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     openNow: true,
     priceLevel: 2,
     priceRange: { min: 120, max: 240, average: 175, currency: '₱' },
+    claimStatus: 'unclaimed',
     menuHighlights: [
-      { name: 'Benguet Typica V60', price: 210, category: 'filter' },
-      { name: 'Flat White (Oat Milk)', price: 180, category: 'milk' },
-      { name: 'Double Ristretto', price: 120, category: 'espresso' },
+      { name: 'Benguet Typica V60', price: 210, category: 'Filter & Pour-Over' },
+      { name: 'Flat White (Oat Milk)', price: 180, category: 'Milk Coffee' },
+      { name: 'Double Ristretto', price: 120, category: 'Espresso Bar' },
+    ],
+    fullMenu: [
+      { name: 'Double Espresso', price: 120, description: 'Bright single-origin extraction', category: 'Espresso Bar' },
+      { name: 'Americano (Hot/Iced)', price: 140, description: 'Double shot over mineral water', category: 'Espresso Bar' },
+      { name: 'Cortado', price: 150, description: '1:1 ratio with silky steamed milk', category: 'Espresso Bar' },
+      { name: 'Benguet Atok V60', price: 210, description: 'Notes of jasmine, bergamot, and wild honey', category: 'Filter & Pour-Over' },
+      { name: 'Sagada Peaberry Kalita', price: 230, description: 'Citrus acidity with muscovado sweetness', category: 'Filter & Pour-Over' },
+      { name: 'Flat White', price: 170, description: 'Velvety microfoam with bold double shot', category: 'Milk Coffee' },
+      { name: 'Oat Milk Spanish Latte', price: 190, description: 'Condensed milk infusion with Minor Figures oat', category: 'Milk Coffee' },
+      { name: 'Vanilla Bean Cappuccino', price: 180, description: 'Madagascar vanilla infused milk', category: 'Milk Coffee' },
+      { name: 'Chapter Cold Brew', price: 160, description: '18-hour cold steeped Mt. Kitanglad beans', category: 'Signatures & Cold' },
+      { name: 'Sea Salt Citrus Cold Drip', price: 220, description: 'Slow drip with calamansi foam', category: 'Signatures & Cold' },
     ],
     distance: 750,
     isVerified: true,
@@ -251,10 +266,21 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     openNow: true,
     priceLevel: 3,
     priceRange: { min: 140, max: 320, average: 210, currency: '₱' },
+    claimStatus: 'unclaimed',
     menuHighlights: [
-      { name: 'Golden Ticket Espresso', price: 150, category: 'espresso' },
-      { name: 'Yardshake (Signature)', price: 240, category: 'signature' },
-      { name: 'Reserve Hand Brew', price: 280, category: 'filter' },
+      { name: 'Golden Ticket Espresso', price: 150, category: 'Espresso Bar' },
+      { name: 'Yardshake (Signature)', price: 240, category: 'Signatures & Cold' },
+      { name: 'Reserve Hand Brew', price: 280, category: 'Filter & Pour-Over' },
+    ],
+    fullMenu: [
+      { name: 'Golden Ticket Double Espresso', price: 150, description: 'Rich chocolate and almond praline notes', category: 'Espresso Bar' },
+      { name: 'Long Black', price: 160, description: 'Hot water topped with fresh crema', category: 'Espresso Bar' },
+      { name: 'Geisha Single Origin Hand Brew', price: 320, description: 'Panama washed floral powerhouse', category: 'Filter & Pour-Over' },
+      { name: 'Ethiopia Yirgacheffe V60', price: 260, description: 'Bergamot and peach stone fruit', category: 'Filter & Pour-Over' },
+      { name: 'Yardstick Magic', price: 190, description: 'Melbourne style double ristretto flat white', category: 'Milk Coffee' },
+      { name: 'Salted Caramel Latte', price: 210, description: 'Housemade caramel syrup with sea salt', category: 'Milk Coffee' },
+      { name: 'Yardshake', price: 240, description: 'Signature espresso shake with vanilla bean gelato', category: 'Signatures & Cold' },
+      { name: 'Sparkling Cascara Tonic', price: 190, description: 'Coffee cherry tea infused with fever-tree tonic', category: 'Signatures & Cold' },
     ],
     distance: 1100,
     isVerified: true,
@@ -308,10 +334,19 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     openNow: true,
     priceLevel: 2,
     priceRange: { min: 130, max: 250, average: 180, currency: '₱' },
+    claimStatus: 'unclaimed',
     menuHighlights: [
-      { name: 'Mt. Apo Aeropress', price: 200, category: 'filter' },
-      { name: 'Sea Salt Cream Latte', price: 190, category: 'milk' },
-      { name: 'Nitro Cold Brew', price: 170, category: 'signature' },
+      { name: 'Mt. Apo Aeropress', price: 200, category: 'Filter & Pour-Over' },
+      { name: 'Sea Salt Cream Latte', price: 190, category: 'Milk Coffee' },
+      { name: 'Nitro Cold Brew', price: 170, category: 'Signatures & Cold' },
+    ],
+    fullMenu: [
+      { name: 'Single Origin Espresso', price: 130, description: 'Rotated weekly from local roasters', category: 'Espresso Bar' },
+      { name: 'Mt. Apo Inverted Aeropress', price: 200, description: 'Championship brew style with juicy body', category: 'Filter & Pour-Over' },
+      { name: 'Davao Catimor V60', price: 210, description: 'Cacao nibs with tropical dried fruits', category: 'Filter & Pour-Over' },
+      { name: 'Sea Salt Cream Latte', price: 190, description: 'Velvet foam dusted with artisanal salt', category: 'Milk Coffee' },
+      { name: 'Piccolo Latte', price: 150, description: 'Intense short milk espresso', category: 'Milk Coffee' },
+      { name: 'Nitro Cold Brew', price: 170, description: 'Creamy nitrogen-infused draft cold coffee', category: 'Signatures & Cold' },
     ],
     distance: 420,
     isVerified: true,
@@ -351,10 +386,19 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     openNow: true,
     priceLevel: 1,
     priceRange: { min: 80, max: 180, average: 125, currency: '₱' },
+    claimStatus: 'unclaimed',
     menuHighlights: [
-      { name: 'Sagada Drip Coffee', price: 90, category: 'filter' },
-      { name: 'Highland French Press', price: 140, category: 'filter' },
-      { name: 'Mountain Honey Latte', price: 160, category: 'milk' },
+      { name: 'Sagada Drip Coffee', price: 90, category: 'Filter & Pour-Over' },
+      { name: 'Highland French Press', price: 140, category: 'Filter & Pour-Over' },
+      { name: 'Mountain Honey Latte', price: 160, category: 'Milk Coffee' },
+    ],
+    fullMenu: [
+      { name: 'Sagada Drip (Fresh Brewed)', price: 90, description: 'Traditional mountain drip roast', category: 'Filter & Pour-Over' },
+      { name: 'Peaberry Single Estate Press', price: 140, description: 'Rich highland crema and earthy cocoa', category: 'Filter & Pour-Over' },
+      { name: 'Mountain Honey Espresso', price: 110, description: 'Raw mountain honey layered double shot', category: 'Espresso Bar' },
+      { name: 'Sagada Honey Latte', price: 160, description: 'Sweetened with local wild honey', category: 'Milk Coffee' },
+      { name: 'Highland Cinnamon Mocha', price: 180, description: 'Traditional tablea dark chocolate & espresso', category: 'Milk Coffee' },
+      { name: 'High Altitude Iced Drip', price: 130, description: 'Chilled overnight in cool mountain climate', category: 'Signatures & Cold' },
     ],
     distance: 850,
     isVerified: true,
@@ -406,10 +450,19 @@ export const PH_SPECIALTY_CAFES: CoffeeShop[] = [
     openNow: true,
     priceLevel: 2,
     priceRange: { min: 140, max: 260, average: 190, currency: '₱' },
+    claimStatus: 'unclaimed',
     menuHighlights: [
-      { name: '16h Slow Cold Drip', price: 190, category: 'signature' },
-      { name: 'Coconut Milk Flat White', price: 180, category: 'milk' },
-      { name: 'Bukidnon Hand Brew', price: 210, category: 'filter' },
+      { name: '16h Slow Cold Drip', price: 190, category: 'Signatures & Cold' },
+      { name: 'Coconut Milk Flat White', price: 180, category: 'Milk Coffee' },
+      { name: 'Bukidnon Hand Brew', price: 210, category: 'Filter & Pour-Over' },
+    ],
+    fullMenu: [
+      { name: 'Island Double Espresso', price: 140, description: 'Bukidnon & Benguet arabica blend', category: 'Espresso Bar' },
+      { name: 'Bukidnon Slow Drip', price: 210, description: 'Tropical papaya and sugarcane undertones', category: 'Filter & Pour-Over' },
+      { name: 'Fresh Coconut Flat White', price: 180, description: 'Freshly squeezed Siargao coconut milk', category: 'Milk Coffee' },
+      { name: 'Island Oat Cortado', price: 170, description: 'Rich espresso with creamy oat finish', category: 'Milk Coffee' },
+      { name: '16-Hour Kyoto Cold Drip', price: 190, description: 'Slow tower drip served on crystal clear ice', category: 'Signatures & Cold' },
+      { name: 'Surf Tonic Espresso', price: 200, description: 'Sparkling tonic with fresh lime and double shot', category: 'Signatures & Cold' },
     ],
     distance: 500,
     isVerified: true,

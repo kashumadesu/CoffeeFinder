@@ -154,15 +154,35 @@ export async function searchNearbyCoffee(
 
   let results = Array.from(map.values());
 
-  // Search query filter
+  // Deep Search: café name, vicinity, city, tags, menu items, bean origin & roast level
   if (filters.searchQuery.trim().length > 0) {
     const q = filters.searchQuery.toLowerCase();
     results = results.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.vicinity.toLowerCase().includes(q) ||
-        s.vibeTags?.some((tag) => tag.toLowerCase().includes(q)),
+        s.city?.toLowerCase().includes(q) ||
+        s.vibeTags?.some((tag) => tag.toLowerCase().includes(q)) ||
+        s.menuHighlights?.some((m) => m.name.toLowerCase().includes(q)) ||
+        s.fullMenu?.some(
+          (m) =>
+            m.name.toLowerCase().includes(q) ||
+            m.description?.toLowerCase().includes(q),
+        ) ||
+        s.brewRecipe?.beanOrigin.toLowerCase().includes(q) ||
+        s.brewRecipe?.roastLevel.toLowerCase().includes(q),
     );
+  }
+
+  // Price Tier Filter: budget (<₱150), mid (₱150–₱250), reserve (>₱250)
+  if (filters.priceTier && filters.priceTier !== 'all') {
+    results = results.filter((s) => {
+      const avg = s.priceRange?.average ?? (s.priceLevel ? s.priceLevel * 80 : 180);
+      if (filters.priceTier === 'budget') return avg < 150;
+      if (filters.priceTier === 'mid') return avg >= 150 && avg <= 250;
+      if (filters.priceTier === 'reserve') return avg > 250;
+      return true;
+    });
   }
 
   // Category filter

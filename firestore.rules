@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || request.auth.token.email.matches('.*@coffeefinder[.]ph$'));
+    }
+    
+    function isOwnerOf(ownerUid) {
+      return isAuthenticated() && request.auth.uid == ownerUid;
+    }
+
+    // Café directory: Anyone can read verified cafés
+    match /cafes/{cafeId} {
+      allow read: if true;
+      // Only verified owners or admins can update live seating and Wi-Fi metrics
+      allow update: if isAdmin() || isOwnerOf(resource.data.ownerId);
+      allow create, delete: if isAdmin();
+    }
+
+    // Owner claim requests: Authenticated users can submit, only Admins can review/approve
+    match /owner_claims/{claimId} {
+      // Anyone logged in can submit a claim for their café
+      allow create: if isAuthenticated();
+      // Only the applicant or an admin can read the submitted claim
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      // ONLY Admin can change verification status (approve or reject)
+      allow update, delete: if isAdmin();
+    }
+
+    // Community Tasting Notes
+    match /tasting_notes/{noteId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.authorId || isAdmin());
+    }
+
+    // User Profiles & Coffee Passports
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwnerOf(userId) || isAdmin();
+    }
+  }
+}

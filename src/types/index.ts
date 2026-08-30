@@ -51,12 +51,14 @@ export interface PriceRange {
 export interface MenuItem {
   name: string;
   price: number;
-  category?: 'espresso' | 'filter' | 'milk' | 'pastry' | 'signature';
+  description?: string;
+  category: 'Espresso Bar' | 'Filter & Pour-Over' | 'Milk Coffee' | 'Signatures & Cold';
 }
 
 export type OwnerVerificationStatus = 'unregistered' | 'pending' | 'verified' | 'rejected';
 
 export interface OwnerClaimRequest {
+  id: string;
   shopId: string;
   shopName: string;
   ownerFullName: string;
@@ -66,7 +68,9 @@ export interface OwnerClaimRequest {
   permitType: 'DTI Registration' | 'Mayor Permit' | 'Barangay Clearance' | 'BIR Certificate';
   permitPhotoUri?: string;
   submittedAt: string;
+  reviewedAt?: string;
   status: OwnerVerificationStatus;
+  rejectionReason?: string;
 }
 
 export interface CoffeeShop {
@@ -88,11 +92,14 @@ export interface CoffeeShop {
   priceLevel?: number;
   priceRange?: PriceRange;
   menuHighlights?: MenuItem[];
+  fullMenu?: MenuItem[];
   distance?: number;
   types?: string[];
 
   // Philippine Specialty & WFC attributes
   isVerified?: boolean;
+  claimStatus?: 'unclaimed' | 'pending' | 'verified';
+  claimedBy?: string;
   acceptsGcash?: boolean;
   vibeTags?: string[];
   seatingStatus?: LiveSeatingStatus;
@@ -133,9 +140,12 @@ export type CategoryFilter =
   | 'fastWifi'
   | 'gcash';
 
+export type PriceTierFilter = 'all' | 'budget' | 'mid' | 'reserve';
+
 export interface Filters {
   searchQuery: string;
   activeCategory: CategoryFilter;
+  priceTier: PriceTierFilter;
   openNow: boolean;
   minRating: number | null;
   radiusMetres: number;
@@ -145,6 +155,7 @@ export interface Filters {
 export const DEFAULT_FILTERS: Filters = {
   searchQuery: '',
   activeCategory: 'specialty',
+  priceTier: 'all',
   openNow: false,
   minRating: null,
   radiusMetres: 3500,
