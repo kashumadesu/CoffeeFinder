@@ -1,5 +1,5 @@
 // ============================================================
-// TastingNotesSection — Community Tasting Reviews & Brew Recipes
+// TastingNotesSection — With Camera & Gallery Photo Uploads
 // ============================================================
 
 import React, { useState } from 'react';
@@ -10,9 +10,11 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Image,
   StyleSheet,
   Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, FLAVOR_TAGS } from '@constants';
 import { useStore } from '@store/useStore';
 import type { CoffeeShop, TastingNote } from '@types';
@@ -28,6 +30,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
   const [brewMethod, setBrewMethod] = useState('V60 Pour-Over');
   const [comment, setComment] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const addTastingNote = useStore((s) => s.addTastingNote);
   const customNotes = useStore((s) => s.customTastingNotes[shop.id] ?? []);
@@ -40,6 +43,29 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
       setSelectedFlavors(selectedFlavors.filter((f) => f !== flavor));
     } else {
       setSelectedFlavors([...selectedFlavors, flavor]);
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Needed', 'Please allow gallery access to attach review photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Image Error', 'Could not access photo library.');
     }
   };
 
@@ -56,12 +82,14 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
       notes: selectedFlavors.length > 0 ? selectedFlavors : ['☕ Specialty Roast'],
       brewMethod,
       comment,
+      photoUri: photoUri ?? undefined,
     });
 
     setModalVisible(false);
     setComment('');
     setSelectedFlavors([]);
-    Alert.alert('Tasting Note Added! ☕', 'Your review and flavor notes are now live for the community.');
+    setPhotoUri(null);
+    Alert.alert('Tasting Note Added! ☕', 'Your review and photo are now live for the community.');
   };
 
   return (
@@ -136,6 +164,14 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
             </View>
 
             <Text style={styles.noteComment}>{note.comment}</Text>
+
+            {/* User Attached Review Photo */}
+            {note.photoUri && (
+              <View style={styles.reviewPhotoWrapper}>
+                <Image source={{ uri: note.photoUri }} style={styles.reviewPhoto} />
+              </View>
+            )}
+
             <Text style={styles.noteTime}>{note.createdAt}</Text>
           </View>
         ))
@@ -158,7 +194,7 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
           <View style={styles.modalContent}>
             <Text style={styles.modalHeading}>Log Your Tasting Note</Text>
             <Text style={styles.modalSubheading}>
-              Share flavor notes and brew method for {shop.name}:
+              Share flavor notes, brew method, and photo for {shop.name}:
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -206,6 +242,29 @@ export const TastingNotesSection: React.FC<Props> = ({ shop }) => {
                 onChangeText={setBrewMethod}
                 placeholder="e.g. V60 Pour-Over, Aeropress, Espresso"
               />
+
+              {/* Photo Upload Attachment */}
+              <Text style={styles.fieldLabel}>📸 Attach Brew / Latte Art Photo</Text>
+              {photoUri ? (
+                <View style={styles.photoPreviewBox}>
+                  <Image source={{ uri: photoUri }} style={styles.photoThumb} />
+                  <TouchableOpacity
+                    style={styles.removePhotoBtn}
+                    onPress={() => setPhotoUri(null)}
+                  >
+                    <Text style={styles.removePhotoText}>✕ Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.photoPickerBtn}
+                  onPress={handlePickImage}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.photoPickerIcon}>📷</Text>
+                  <Text style={styles.photoPickerText}>Choose Photo from Gallery</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Review Comments */}
               <Text style={styles.fieldLabel}>Your Tasting Experience</Text>
@@ -381,6 +440,18 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     lineHeight: 18,
   },
+  reviewPhotoWrapper: {
+    width: '100%',
+    height: 140,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  reviewPhoto: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   noteTime: {
     fontSize: 10.5,
     color: COLORS.textMuted,
@@ -408,7 +479,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    maxHeight: '85%',
+    maxHeight: '88%',
     gap: SPACING.xs,
   },
   modalHeading: {
@@ -469,6 +540,49 @@ const styles = StyleSheet.create({
   pickerChipTextActive: {
     color: '#FFFFFF',
   },
+  photoPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSage,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryLight,
+    borderStyle: 'dashed',
+    borderRadius: RADIUS.sm,
+    paddingVertical: 14,
+    gap: 6,
+    marginBottom: 4,
+  },
+  photoPickerIcon: {
+    fontSize: 16,
+  },
+  photoPickerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  photoPreviewBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: 4,
+  },
+  photoThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: RADIUS.xs,
+  },
+  removePhotoBtn: {
+    backgroundColor: '#FDEDEC',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+  },
+  removePhotoText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.danger,
+  },
   input: {
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.sm,
@@ -480,7 +594,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   textArea: {
-    minHeight: 70,
+    minHeight: 65,
     textAlignVertical: 'top',
   },
   modalActionRow: {

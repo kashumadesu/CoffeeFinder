@@ -8,6 +8,7 @@ export interface Location {
 }
 
 export type LiveSeatingStatus = 'available' | 'moderate' | 'full' | 'unknown';
+export type MapTypeOption = 'standard' | 'satellite' | 'terrain';
 
 export interface TastingNote {
   id: string;
@@ -18,10 +19,11 @@ export interface TastingNote {
   brewMethod?: string;   // e.g. "V60 Pour-Over"
   comment: string;
   createdAt: string;
+  photoUri?: string;     // Local user review photo attachment
 }
 
 export interface BrewRecipe {
-  beanOrigin: string;    // e.g. "Benguet Arabica (Typica)"
+  beanOrigin: string;    // e.g. "Benguet Atok (Arabica Typica)"
   roastLevel: string;    // e.g. "Light-Medium"
   ratio: string;         // e.g. "1:15 (15g coffee / 225g water)"
   temperature: string;   // e.g. "92°C"

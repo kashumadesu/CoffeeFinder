@@ -1,5 +1,5 @@
 // ============================================================
-// Zustand Global Store — Specialty Coffee Edition (Features 1, 3, 4)
+// Zustand Global Store — Specialty Coffee Edition (Features 1, 2, 3, 4)
 // ============================================================
 
 import { create } from 'zustand';
@@ -11,6 +11,7 @@ import type {
   LiveSeatingStatus,
   TastingNote,
   RegionHub,
+  MapTypeOption,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
@@ -19,13 +20,16 @@ import { REGION_HUBS } from '@constants';
 const FAVORITES_KEY = '@coffee_finder:favorites_v2';
 const TASTING_NOTES_KEY = '@coffee_finder:tasting_notes_v2';
 const CACHED_SHOPS_KEY = '@coffee_finder:cached_shops_v2';
+const MAP_TYPE_KEY = '@coffee_finder:map_type_v1';
 
 interface AppState {
   // ---- location & regional hubs ----
   userLocation: Location;
   currentRegion: RegionHub;
+  mapType: MapTypeOption;
   setUserLocation: (loc: Location) => void;
   setRegion: (region: RegionHub) => void;
+  setMapType: (type: MapTypeOption) => void;
 
   // ---- in-app map navigation mode ----
   activeNavigationShop: CoffeeShop | null;
@@ -78,6 +82,8 @@ export const useStore = create<AppState>((set, get) => ({
     latitude: REGION_HUBS[0].latitude,
     longitude: REGION_HUBS[0].longitude,
   },
+  mapType: 'standard',
+
   setUserLocation: (loc) => {
     set({ userLocation: loc });
     get().fetchNearbyShops(loc);
@@ -86,6 +92,12 @@ export const useStore = create<AppState>((set, get) => ({
     const loc = { latitude: region.latitude, longitude: region.longitude };
     set({ currentRegion: region, userLocation: loc });
     get().fetchNearbyShops(loc);
+  },
+  setMapType: (mapType) => {
+    set({ mapType });
+    try {
+      AsyncStorage.setItem(MAP_TYPE_KEY, mapType);
+    } catch {}
   },
 
   // ---- In-App Map Navigation Mode ----
@@ -156,6 +168,9 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const raw = await AsyncStorage.getItem(TASTING_NOTES_KEY);
       if (raw) set({ customTastingNotes: JSON.parse(raw) });
+
+      const savedMapType = await AsyncStorage.getItem(MAP_TYPE_KEY);
+      if (savedMapType) set({ mapType: savedMapType as MapTypeOption });
     } catch {}
   },
 

@@ -1,8 +1,8 @@
 // ============================================================
-// MapScreen — Discover Specialty Spots (With In-App Route HUD & Regional Switcher)
+// MapScreen — Discover Specialty Spots (With Map Type Switcher & Routing HUD)
 // ============================================================
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Platform,
+  Modal,
 } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
@@ -17,7 +18,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
 import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA } from '@constants';
-
 import { useStore } from '@store/useStore';
 import { useLocation } from '@hooks/useLocation';
 import { useFavorites } from '@hooks/useFavorites';
@@ -28,7 +28,7 @@ import { RegionSelector } from '@components/RegionSelector';
 import { RoutePolyline } from '@components/RoutePolyline';
 import { ShopCard } from '@components/ShopCard';
 import { formatDistance } from '@services/googlePlaces';
-import type { CoffeeShop, RootStackParamList } from '@types';
+import type { CoffeeShop, RootStackParamList, MapTypeOption } from '@types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -37,10 +37,14 @@ export const MapScreen: React.FC = () => {
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
 
+  const [layersModalVisible, setLayersModalVisible] = useState(false);
+
   // Store
   const shops = useStore((s) => s.shops);
   const isLoading = useStore((s) => s.isLoading);
   const isOffline = useStore((s) => s.isOffline);
+  const mapType = useStore((s) => s.mapType);
+  const setMapType = useStore((s) => s.setMapType);
   const selectedShop = useStore((s) => s.selectedShop);
   const setSelectedShop = useStore((s) => s.setSelectedShop);
   const fetchNearbyShops = useStore((s) => s.fetchNearbyShops);
@@ -134,7 +138,7 @@ export const MapScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Interactive Map */}
+      {/* Interactive Map with dynamic mapType */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -142,6 +146,7 @@ export const MapScreen: React.FC = () => {
         showsUserLocation
         showsMyLocationButton={false}
         minZoomLevel={6}
+        mapType={mapType}
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
@@ -224,10 +229,65 @@ export const MapScreen: React.FC = () => {
         </TouchableOpacity>
       )}
 
-      {/* Floating Location Target Button (Bottom Right) */}
-      <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.85}>
-        <Text style={styles.myLocationIcon}>🧭</Text>
-      </TouchableOpacity>
+      {/* Floating Controls (Map Layer + GPS Target on Bottom Right) */}
+      <View style={styles.floatingControlsRight}>
+        <TouchableOpacity
+          style={styles.mapLayerBtn}
+          onPress={() => setLayersModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.mapLayerIcon}>
+            {mapType === 'satellite' ? '🛰️' : mapType === 'terrain' ? '⛰️' : '🗺️'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.85}>
+          <Text style={styles.myLocationIcon}>🧭</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Map Layers Modal */}
+      <Modal
+        visible={layersModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLayersModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setLayersModalVisible(false)}
+          activeOpacity={1}
+        >
+          <View style={styles.layersSheet}>
+            <Text style={styles.layersTitle}>🗺 Select Map Layer</Text>
+            {[
+              { type: 'standard' as MapTypeOption, label: '🌿 Specialty Standard', sub: 'Clean road map' },
+              { type: 'satellite' as MapTypeOption, label: '🛰️ Satellite Hybrid', sub: 'High-res aerial photography' },
+              { type: 'terrain' as MapTypeOption, label: '⛰️ Highland Terrain', sub: 'Topography & mountain contours' },
+            ].map((layer) => (
+              <TouchableOpacity
+                key={layer.type}
+                style={[
+                  styles.layerOption,
+                  mapType === layer.type && styles.layerOptionSelected,
+                ]}
+                onPress={() => {
+                  setMapType(layer.type);
+                  setLayersModalVisible(false);
+                }}
+              >
+                <View>
+                  <Text style={[styles.layerLabel, mapType === layer.type && styles.layerLabelSelected]}>
+                    {layer.label}
+                  </Text>
+                  <Text style={styles.layerSub}>{layer.sub}</Text>
+                </View>
+                {mapType === layer.type && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Loading Indicator */}
       {isLoading && (
@@ -237,7 +297,7 @@ export const MapScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Bottom Sheet Drawer (Hidden during active in-app navigation) */}
+      {/* Bottom Sheet Drawer */}
       {!activeNavigationShop && (
         <BottomSheet
           ref={bottomSheetRef}
@@ -415,10 +475,14 @@ const styles = StyleSheet.create({
   gcashPillTextActive: {
     color: COLORS.gcash,
   },
-  myLocationBtn: {
+  floatingControlsRight: {
     position: 'absolute',
     bottom: 135,
     right: SPACING.md,
+    gap: SPACING.sm,
+    zIndex: 9,
+  },
+  mapLayerBtn: {
     backgroundColor: COLORS.surface,
     width: 44,
     height: 44,
@@ -432,10 +496,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    zIndex: 9,
+  },
+  mapLayerIcon: {
+    fontSize: 18,
+  },
+  myLocationBtn: {
+    backgroundColor: COLORS.surface,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.2,
+    borderColor: COLORS.border,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   myLocationIcon: {
     fontSize: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center',
+    padding: SPACING.md,
+  },
+  layersSheet: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  layersTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  layerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  layerOptionSelected: {
+    backgroundColor: COLORS.surfaceSage,
+  },
+  layerLabel: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  layerLabelSelected: {
+    color: COLORS.primary,
+  },
+  layerSub: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  checkmark: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.primary,
   },
   loadingOverlay: {
     position: 'absolute',
