@@ -1,8 +1,9 @@
 // ============================================================
-// CoffeeMarker — Minimal, Clip-Free Custom Map Pin
+// CoffeeMarker — Glitch-Free, Zero-Jump Custom Map Pin
+// Fixed frame coordinates prevent iOS top-left jumping and disappearance
 // ============================================================
 
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
@@ -16,42 +17,40 @@ interface Props {
 }
 
 const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) => {
-  // Allow iOS native layout to finish before freezing tracksViewChanges
-  const [tracksViewChanges, setTracksViewChanges] = useState(true);
-
-  useEffect(() => {
-    setTracksViewChanges(true);
-    const timer = setTimeout(() => setTracksViewChanges(false), 500);
-    return () => clearTimeout(timer);
-  }, [isSelected]);
-
   // First letter initial of café name for selected state
   const initial = shop.name.charAt(0).toUpperCase();
 
   return (
     <Marker
+      key={`${shop.id}-${isSelected ? 'sel' : 'unsel'}`}
       coordinate={shop.location}
       onPress={(e) => {
         e.stopPropagation();
         hapticLight();
         onPress(shop);
       }}
-      tracksViewChanges={tracksViewChanges}
       identifier={shop.id}
       anchor={{ x: 0.5, y: 1 }}
+      tracksViewChanges={false}
     >
-      {/* Outer wrapper sized generously — avoids any clipping */}
-      <View style={styles.wrapper}>
+      {/* Fixed-dimension outer container prevents coordinate re-layout glitches */}
+      <View style={styles.fixedContainer}>
         {isSelected ? (
-          <>
+          <View style={styles.selectedWrapper}>
             <View style={styles.bubbleSelected}>
               <Text style={styles.initial}>{initial}</Text>
             </View>
             <View style={styles.tail} />
-          </>
+          </View>
         ) : (
-          <View style={[styles.bubble, shop.isVerified === false && styles.bubbleUnverified]}>
-            <Feather name="coffee" size={13} color={shop.isVerified === false ? '#8A7560' : '#4A3423'} />
+          <View style={styles.unselectedWrapper}>
+            <View style={[styles.bubble, shop.isVerified === false && styles.bubbleUnverified]}>
+              <Feather
+                name="coffee"
+                size={13}
+                color={shop.isVerified === false ? '#8A7560' : '#4A3423'}
+              />
+            </View>
           </View>
         )}
       </View>
@@ -62,12 +61,21 @@ const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) =
 export const CoffeeMarker = memo(CoffeeMarkerComponent);
 
 const styles = StyleSheet.create({
-  // Generous container — overflow visible prevents clipping on all devices
-  wrapper: {
+  // Fixed size container prevents any subview jump to (0,0)
+  fixedContainer: {
+    width: 44,
+    height: 48,
     alignItems: 'center',
-    overflow: 'visible',
-    paddingHorizontal: 6,
-    paddingTop: 6,
+    justifyContent: 'flex-end',
+  },
+  unselectedWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 4,
+  },
+  selectedWrapper: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   // Unselected pin — small, clean circle
   bubble: {
@@ -94,8 +102,8 @@ const styles = StyleSheet.create({
   bubbleSelected: {
     backgroundColor: '#1C3326',
     borderRadius: 20,
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
@@ -116,12 +124,12 @@ const styles = StyleSheet.create({
   tail: {
     width: 0,
     height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#1C3326',
-    marginTop: 0,
+    marginTop: -1,
   },
 });

@@ -97,17 +97,6 @@ export const MapScreen: React.FC = () => {
   useEffect(() => {
     if (!activeNavigationShop) {
       setNavigationRoute(null);
-      if (selectedShop && mapRef.current) {
-        mapRef.current.animateToRegion(
-          {
-            latitude: selectedShop.location.latitude - 0.003,
-            longitude: selectedShop.location.longitude,
-            latitudeDelta: DELTA.small,
-            longitudeDelta: DELTA.small,
-          },
-          450,
-        );
-      }
       return;
     }
 
