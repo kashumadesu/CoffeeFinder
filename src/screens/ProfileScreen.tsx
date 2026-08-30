@@ -25,6 +25,7 @@ import {
   subscribeToAuthChanges,
 } from '@services/firebase';
 import { promptGoogleSignIn } from '@services/googleAuth';
+import { promptFacebookSignIn } from '@services/facebookAuth';
 import { hapticSuccess } from '@utils/haptics';
 
 interface PassportStamp {
@@ -118,18 +119,37 @@ export const ProfileScreen: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: 'Apple' | 'Facebook') => {
-    if (provider === 'Apple') {
-      Alert.alert(
-        'Apple Sign-In',
-        'Apple Sign-In will activate automatically upon App Store submission with your Apple Developer Account.',
-      );
-    } else {
-      Alert.alert(
-        'Facebook Login',
-        'Facebook Login is ready to connect once a Facebook App ID is linked in your developer settings.',
-      );
+  const [isFacebookLoading, setIsFacebookLoading] = useState(false);
+
+  const handleFacebookLogin = async () => {
+    setIsFacebookLoading(true);
+    try {
+      const { profile, error } = await promptFacebookSignIn();
+      if (profile) {
+        const name = profile.name || 'Facebook User';
+        setUserName(name);
+        setIsLoggedIn(true);
+        setAuthModalVisible(false);
+        hapticSuccess();
+        Alert.alert(
+          'Facebook Connected',
+          `Welcome, ${name}! Signed in with Facebook. Your passport stamps and saved cafés are synced.`,
+        );
+      } else if (error && error !== 'Cancelled by user') {
+        Alert.alert('Facebook Login', error);
+      }
+    } catch (err: any) {
+      Alert.alert('Facebook Login Error', err.message || 'Could not complete Facebook Login.');
+    } finally {
+      setIsFacebookLoading(false);
     }
+  };
+
+  const handleSocialLogin = (provider: 'Apple') => {
+    Alert.alert(
+      'Apple Sign-In',
+      'Apple Sign-In will activate automatically upon App Store submission with your Apple Developer Account.',
+    );
   };
 
   const handleEmailAuth = async () => {
@@ -447,14 +467,21 @@ export const ProfileScreen: React.FC = () => {
                 <Text style={styles.appleBtnText}>Continue with Apple ID</Text>
               </TouchableOpacity>
 
-              {/* Facebook Login */}
+              {/* Facebook Login — Active & Configured */}
               <TouchableOpacity
                 style={styles.facebookBtn}
-                onPress={() => handleSocialLogin('Facebook')}
+                onPress={handleFacebookLogin}
                 activeOpacity={0.85}
+                disabled={isFacebookLoading}
               >
-                <Feather name="facebook" size={16} color="#FFFFFF" />
-                <Text style={styles.facebookBtnText}>Continue with Facebook</Text>
+                {isFacebookLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="facebook" size={16} color="#FFFFFF" />
+                    <Text style={styles.facebookBtnText}>Continue with Facebook</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
 
