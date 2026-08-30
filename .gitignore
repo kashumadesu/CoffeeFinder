@@ -1,4 +1,4 @@
-gitnode_modules/
+node_modules/
 .expo/
 dist/
 web-build/
@@ -13,5 +13,3 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 AndroidManifest
-eas.json
-node_modules
