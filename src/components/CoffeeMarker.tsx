@@ -1,9 +1,9 @@
 // ============================================================
-// CoffeeMarker — Custom Taupe & Dark Bubble Map Pin (Touch Responsive)
+// CoffeeMarker — Minimal, Clip-Free Custom Map Pin
 // ============================================================
 
 import React, { memo, useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Feather } from '@expo/vector-icons';
 import { hapticLight } from '@utils/haptics';
@@ -16,16 +16,17 @@ interface Props {
 }
 
 const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) => {
-  // Allow iOS native layout to finish rendering before freezing tracksViewChanges
+  // Allow iOS native layout to finish before freezing tracksViewChanges
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
     setTracksViewChanges(true);
-    const timer = setTimeout(() => {
-      setTracksViewChanges(false);
-    }, 400);
+    const timer = setTimeout(() => setTracksViewChanges(false), 500);
     return () => clearTimeout(timer);
   }, [isSelected]);
+
+  // First letter initial of café name for selected state
+  const initial = shop.name.charAt(0).toUpperCase();
 
   return (
     <Marker
@@ -37,14 +38,22 @@ const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) =
       }}
       tracksViewChanges={tracksViewChanges}
       identifier={shop.id}
+      anchor={{ x: 0.5, y: 1 }}
     >
-      <View style={[styles.pin, isSelected && styles.pinSelected]}>
-        <Feather
-          name="coffee"
-          size={isSelected ? 18 : 16}
-          color={isSelected ? '#FFFFFF' : '#4A3423'}
-        />
-        {isSelected && <View style={styles.tail} />}
+      {/* Outer wrapper sized generously — avoids any clipping */}
+      <View style={styles.wrapper}>
+        {isSelected ? (
+          <>
+            <View style={styles.bubbleSelected}>
+              <Text style={styles.initial}>{initial}</Text>
+            </View>
+            <View style={styles.tail} />
+          </>
+        ) : (
+          <View style={[styles.bubble, shop.isVerified === false && styles.bubbleUnverified]}>
+            <Feather name="coffee" size={13} color={shop.isVerified === false ? '#8A7560' : '#4A3423'} />
+          </View>
+        )}
       </View>
     </Marker>
   );
@@ -53,40 +62,66 @@ const CoffeeMarkerComponent: React.FC<Props> = ({ shop, isSelected, onPress }) =
 export const CoffeeMarker = memo(CoffeeMarkerComponent);
 
 const styles = StyleSheet.create({
-  pin: {
-    backgroundColor: '#D2C4B5',
-    borderRadius: 18,
-    width: 36,
-    height: 36,
+  // Generous container — overflow visible prevents clipping on all devices
+  wrapper: {
+    alignItems: 'center',
+    overflow: 'visible',
+    paddingHorizontal: 6,
+    paddingTop: 6,
+  },
+  // Unselected pin — small, clean circle
+  bubble: {
+    backgroundColor: '#D9CCBE',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
-    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 4,
   },
-  pinSelected: {
+  // Unverified café — greyed out
+  bubbleUnverified: {
+    backgroundColor: '#E0D8CF',
+    borderColor: '#E8E0D8',
+  },
+  // Selected pin — larger, brand green, with initial
+  bubbleSelected: {
     backgroundColor: '#1C3326',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderColor: '#FFFFFF',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2.5,
-    transform: [{ scale: 1.15 }],
+    borderColor: '#FFFFFF',
+    shadowColor: '#1C3326',
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
+  initial: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  // Pointer tail — sits flush below the bubble
   tail: {
-    position: 'absolute',
-    bottom: -6,
     width: 0,
     height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 6,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 7,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#1C3326',
+    marginTop: 0,
   },
 });

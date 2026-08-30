@@ -14,6 +14,7 @@ import {
   Modal,
   Image,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -279,19 +280,30 @@ export const OwnerPortalScreen: React.FC = () => {
     setPushCampaignText('');
   };
 
-  const handlePayMongoCheckout = (method: 'GCash' | 'Maya' | 'Card') => {
+  const handlePayMongoCheckout = async (method: 'GCash' | 'Maya' | 'Card') => {
     setIsProcessingPayment(true);
-    setTimeout(() => {
-      setIsProcessingPayment(false);
-      if (checkoutPlan) {
-        setCurrentPlan(checkoutPlan.id);
-        Alert.alert(
-          'Subscription Active',
-          `Successfully subscribed to ${checkoutPlan.name} via ${method} (PayMongo). Premium owner tools are active!`,
-        );
+
+    // PayMongo checkout deep links per method
+    const PAYMONGO_LINKS: Record<string, string> = {
+      GCash: 'https://pay.paymongo.com/links/coffeefinderph-gcash',
+      Maya: 'https://pay.paymongo.com/links/coffeefinderph-maya',
+      Card: 'https://pay.paymongo.com/links/coffeefinderph-card',
+    };
+
+    const url = PAYMONGO_LINKS[method];
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        await Linking.openURL('https://coffeefinder.ph/subscribe');
       }
+    } catch {
+      Alert.alert('Payment', 'Opening payment page in your browser.');
+    } finally {
+      setIsProcessingPayment(false);
       setCheckoutPlan(null);
-    }, 1200);
+    }
   };
 
   return (

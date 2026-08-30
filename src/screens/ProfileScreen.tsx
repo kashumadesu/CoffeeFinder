@@ -58,20 +58,36 @@ export const ProfileScreen: React.FC = () => {
       setCurrentUser(u);
       if (u) {
         setIsLoggedIn(true);
-        setUserName(u.email?.split('@')[0] ?? 'Coffee Explorer');
+        setUserName(u.displayName ?? u.email?.split('@')[0] ?? 'Coffee Explorer');
+      } else {
+        setIsLoggedIn(false);
       }
     });
     return () => unsub();
   }, [setCurrentUser]);
 
-  // Coffee Passport Regional Stamps
-  const stamps: PassportStamp[] = [
-    { id: 'manila', region: 'Metro Manila', island: 'Luzon', unlocked: true, cafesCount: 3 },
-    { id: 'sagada', region: 'Sagada Highlands', island: 'Cordillera', unlocked: true, cafesCount: 1 },
-    { id: 'benguet', region: 'Baguio & Benguet', island: 'Luzon', unlocked: false, cafesCount: 0 },
-    { id: 'cebu', region: 'Cebu City', island: 'Visayas', unlocked: false, cafesCount: 0 },
-    { id: 'siargao', region: 'Siargao Island', island: 'Mindanao', unlocked: true, cafesCount: 1 },
+  // Coffee Passport Regional Stamps — dynamically unlocked by saved favorites
+  const STAMP_REGIONS = [
+    { id: 'manila', region: 'Metro Manila', island: 'Luzon', keywords: ['manila', 'quezon', 'makati', 'bgc', 'taguig', 'pasig', 'ortigas'] },
+    { id: 'sagada', region: 'Sagada Highlands', island: 'Cordillera', keywords: ['sagada'] },
+    { id: 'benguet', region: 'Baguio & Benguet', island: 'Luzon', keywords: ['baguio', 'benguet', 'la trinidad'] },
+    { id: 'cebu', region: 'Cebu City', island: 'Visayas', keywords: ['cebu'] },
+    { id: 'siargao', region: 'Siargao Island', island: 'Mindanao', keywords: ['siargao', 'surigao'] },
   ];
+
+  const stamps: PassportStamp[] = STAMP_REGIONS.map((r) => {
+    const matching = favorites.filter((f) => {
+      const haystack = `${f.name} ${f.vicinity ?? ''} ${f.city ?? ''}`.toLowerCase();
+      return r.keywords.some((kw) => haystack.includes(kw));
+    });
+    return {
+      id: r.id,
+      region: r.region,
+      island: r.island,
+      unlocked: matching.length > 0,
+      cafesCount: matching.length,
+    };
+  });
 
   const handleSocialLogin = (provider: 'Apple' | 'Google' | 'Facebook') => {
     setUserName(provider === 'Apple' ? 'Apple ID Coffee Explorer' : `${provider} Coffee Explorer`);
@@ -178,16 +194,16 @@ export const ProfileScreen: React.FC = () => {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>5</Text>
-            <Text style={styles.statLabel}>Spots Visited</Text>
-          </View>
-          <View style={styles.statBox}>
             <Text style={styles.statNumber}>{favorites.length}</Text>
             <Text style={styles.statLabel}>Saved Cafés</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>3</Text>
+            <Text style={styles.statNumber}>{stamps.filter((s) => s.unlocked).length}</Text>
             <Text style={styles.statLabel}>Stamps Earned</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{stamps.filter((s) => s.unlocked).reduce((acc, s) => acc + s.cafesCount, 0)}</Text>
+            <Text style={styles.statLabel}>Cafés Logged</Text>
           </View>
         </View>
 
@@ -366,37 +382,14 @@ export const ProfileScreen: React.FC = () => {
               Sync your saved spots, coffee passport stamps, and reviews across your devices.
             </Text>
 
-            {/* Social Buttons */}
+            {/* Social Login — Coming in v2.1 */}
             <View style={styles.socialBtnGroup}>
-              {/* Apple Sign In */}
-              <TouchableOpacity
-                style={styles.appleBtn}
-                onPress={() => handleSocialLogin('Apple')}
-                activeOpacity={0.85}
-              >
-                <Feather name="command" size={16} color="#FFFFFF" />
-                <Text style={styles.appleBtnText}>Continue with Apple ID</Text>
-              </TouchableOpacity>
-
-              {/* Google Sign In */}
-              <TouchableOpacity
-                style={styles.googleBtn}
-                onPress={() => handleSocialLogin('Google')}
-                activeOpacity={0.85}
-              >
-                <Feather name="mail" size={16} color="#333333" />
-                <Text style={styles.googleBtnText}>Continue with Google</Text>
-              </TouchableOpacity>
-
-              {/* Facebook Login */}
-              <TouchableOpacity
-                style={styles.facebookBtn}
-                onPress={() => handleSocialLogin('Facebook')}
-                activeOpacity={0.85}
-              >
-                <Feather name="facebook" size={16} color="#FFFFFF" />
-                <Text style={styles.facebookBtnText}>Continue with Facebook</Text>
-              </TouchableOpacity>
+              <View style={styles.comingSoonNote}>
+                <Feather name="info" size={13} color={COLORS.textMuted} />
+                <Text style={styles.comingSoonText}>
+                  Apple ID, Google & Facebook sign-in coming in v2.1. Use email below.
+                </Text>
+              </View>
             </View>
 
             <View style={styles.dividerRow}>
@@ -1016,5 +1009,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textPrimary,
     lineHeight: 18,
+  },
+  comingSoonNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#F5F0EA',
+    borderRadius: 10,
+    padding: 12,
+  },
+  comingSoonText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: COLORS.textSecondary,
+    lineHeight: 17,
   },
 });

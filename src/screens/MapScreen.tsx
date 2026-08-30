@@ -44,6 +44,8 @@ export const MapScreen: React.FC = () => {
   const hasFramedRouteRef = useRef(false);
 
   const [layersModalVisible, setLayersModalVisible] = useState(false);
+  // Real Directions API route info (duration + distance from Google, not math estimates)
+  const [routeInfo, setRouteInfo] = useState<{ durationSecs: number; distanceMetres: number } | null>(null);
 
   // Store
   const shops = useStore((s) => s.shops);
@@ -143,6 +145,8 @@ export const MapScreen: React.FC = () => {
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {
       setSelectedShop(shop);
+      // Snap bottom sheet to middle so the café card is visible — R3 fix
+      bottomSheetRef.current?.snapToIndex(1);
     },
     [setSelectedShop],
   );
@@ -246,6 +250,7 @@ export const MapScreen: React.FC = () => {
             origin={userLocation}
             destination={activeNavigationShop.location}
             mode={navigationMode}
+            onRouteReady={(info) => setRouteInfo(info)}
           />
         )}
 
@@ -286,10 +291,9 @@ export const MapScreen: React.FC = () => {
               <View style={styles.navHudEtaRow}>
                 <Feather name="clock" size={11} color={COLORS.textSecondary} />
                 <Text style={styles.navHudEta}>
-                  {navigationMode === 'walking'
-                    ? `${Math.max(1, Math.round((activeNavigationShop.distance ?? 650) / 80))} mins walk`
-                    : `${Math.max(1, Math.round((activeNavigationShop.distance ?? 650) / 320))} mins drive`}
-                  {' • '}{formatDistance(activeNavigationShop.distance ?? 650)}
+                  {routeInfo
+                    ? `${Math.max(1, Math.round(routeInfo.durationSecs / 60))} min ${navigationMode === 'walking' ? 'walk' : 'drive'} • ${formatDistance(routeInfo.distanceMetres)}`
+                    : `Calculating route…`}
                 </Text>
               </View>
             </View>
@@ -355,7 +359,7 @@ export const MapScreen: React.FC = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.navEndBtn}
-                onPress={stopNavigation}
+                onPress={() => { stopNavigation(); setRouteInfo(null); }}
                 activeOpacity={0.8}
               >
                 <Feather name="x" size={12} color={COLORS.danger} />
