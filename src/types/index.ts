@@ -9,12 +9,43 @@ export interface Location {
 
 export type LiveSeatingStatus = 'available' | 'moderate' | 'full' | 'unknown';
 
+export interface TastingNote {
+  id: string;
+  shopId: string;
+  author: string;
+  rating: number;
+  notes: string[];       // e.g. ["🌸 Jasmine", "🍋 Bergamot", "🍯 Wild Honey"]
+  brewMethod?: string;   // e.g. "V60 Pour-Over"
+  comment: string;
+  createdAt: string;
+}
+
+export interface BrewRecipe {
+  beanOrigin: string;    // e.g. "Benguet Arabica (Typica)"
+  roastLevel: string;    // e.g. "Light-Medium"
+  ratio: string;         // e.g. "1:15 (15g coffee / 225g water)"
+  temperature: string;   // e.g. "92°C"
+  grindSize: string;     // e.g. "Medium-Coarse"
+  brewTime: string;      // e.g. "2m 45s"
+}
+
+export interface RegionHub {
+  id: string;
+  name: string;
+  island: string;        // e.g. "Luzon", "Visayas", "Mindanao"
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
 export interface CoffeeShop {
   id: string;              // Google place_id or unique ID
   name: string;
   vicinity: string;        // Short address
   formattedAddress?: string;
-  city?: string;           // e.g. "Quezon City", "Makati", "BGC", "Cebu"
+  city?: string;           // e.g. "Quezon City", "Sagada", "Cebu", "Siargao"
+  regionId?: string;       // e.g. "manila", "sagada", "benguet", "cebu", "siargao"
   location: Location;
   rating?: number;
   userRatingsTotal?: number;
@@ -39,6 +70,10 @@ export interface CoffeeShop {
   hasAlFresco?: boolean;
   isSpecialty?: boolean;
   isNew?: boolean;
+
+  // Community Tasting & Brew Recipes
+  tastingNotes?: TastingNote[];
+  brewRecipe?: BrewRecipe;
 }
 
 export interface OpeningHours {
@@ -80,7 +115,7 @@ export const DEFAULT_FILTERS: Filters = {
   activeCategory: 'specialty',
   openNow: false,
   minRating: null,
-  radiusMetres: 2500,
+  radiusMetres: 3500,
   gcashOnly: false,
 };
 

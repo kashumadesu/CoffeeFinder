@@ -1,5 +1,5 @@
 // ============================================================
-// MapScreen — Discover Specialty Spots (Matching Mockup Screen 2)
+// MapScreen — Discover Specialty Spots (With In-App Route HUD & Regional Switcher)
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -16,14 +16,18 @@ import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
-import { COLORS, SPACING, DEFAULT_REGION, DELTA, PH_BOUNDARY } from '@constants';
+import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA } from '@constants';
+
 import { useStore } from '@store/useStore';
 import { useLocation } from '@hooks/useLocation';
 import { useFavorites } from '@hooks/useFavorites';
 import { CoffeeMarker } from '@components/CoffeeMarker';
 import { SearchBar } from '@components/SearchBar';
 import { FilterBar } from '@components/FilterBar';
+import { RegionSelector } from '@components/RegionSelector';
+import { RoutePolyline } from '@components/RoutePolyline';
 import { ShopCard } from '@components/ShopCard';
+import { formatDistance } from '@services/googlePlaces';
 import type { CoffeeShop, RootStackParamList } from '@types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
@@ -36,12 +40,16 @@ export const MapScreen: React.FC = () => {
   // Store
   const shops = useStore((s) => s.shops);
   const isLoading = useStore((s) => s.isLoading);
+  const isOffline = useStore((s) => s.isOffline);
   const selectedShop = useStore((s) => s.selectedShop);
   const setSelectedShop = useStore((s) => s.setSelectedShop);
   const fetchNearbyShops = useStore((s) => s.fetchNearbyShops);
   const userLocation = useStore((s) => s.userLocation);
   const gcashOnly = useStore((s) => s.filters.gcashOnly);
   const toggleGcashOnly = useStore((s) => s.toggleGcashOnly);
+  const activeNavigationShop = useStore((s) => s.activeNavigationShop);
+  const stopNavigation = useStore((s) => s.stopNavigation);
+  const loadTastingNotes = useStore((s) => s.loadTastingNotes);
 
   // Hooks
   useLocation();
@@ -49,12 +57,12 @@ export const MapScreen: React.FC = () => {
 
   const snapPoints = useMemo(() => ['16%', '45%', '85%'], []);
 
-  // Fetch initial spots on mount
   useEffect(() => {
     fetchNearbyShops();
-  }, [fetchNearbyShops]);
+    loadTastingNotes();
+  }, [fetchNearbyShops, loadTastingNotes]);
 
-  // Animate map when user location changes
+  // Animate map when user location or region changes
   useEffect(() => {
     if (userLocation && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -68,20 +76,23 @@ export const MapScreen: React.FC = () => {
     }
   }, [userLocation]);
 
-  // Animate map when shop is selected
+  // Animate map when navigation starts or shop selected
   useEffect(() => {
-    if (selectedShop && mapRef.current) {
+    const target = activeNavigationShop ?? selectedShop;
+    if (target && mapRef.current) {
       mapRef.current.animateToRegion(
         {
-          ...selectedShop.location,
+          ...target.location,
           latitudeDelta: DELTA.small,
           longitudeDelta: DELTA.small,
         },
         450,
       );
-      bottomSheetRef.current?.snapToIndex(1);
+      if (!activeNavigationShop) {
+        bottomSheetRef.current?.snapToIndex(1);
+      }
     }
-  }, [selectedShop]);
+  }, [selectedShop, activeNavigationShop]);
 
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {
@@ -99,8 +110,10 @@ export const MapScreen: React.FC = () => {
   );
 
   const handleMapPress = useCallback(() => {
-    setSelectedShop(null);
-  }, [setSelectedShop]);
+    if (!activeNavigationShop) {
+      setSelectedShop(null);
+    }
+  }, [setSelectedShop, activeNavigationShop]);
 
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
@@ -132,40 +145,91 @@ export const MapScreen: React.FC = () => {
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
+        {/* Render Route Polyline when In-App Navigation is active */}
+        {activeNavigationShop && (
+          <RoutePolyline
+            origin={userLocation}
+            destination={activeNavigationShop.location}
+          />
+        )}
+
         {shops.map((shop) => (
           <CoffeeMarker
             key={shop.id}
             shop={shop}
-            isSelected={selectedShop?.id === shop.id}
+            isSelected={
+              activeNavigationShop?.id === shop.id || selectedShop?.id === shop.id
+            }
             onPress={handleMarkerPress}
           />
         ))}
       </MapView>
 
-      {/* Floating Header (Search + Category Filter Chips) */}
+      {/* Floating Header (Search + Regional Hub Switcher + Category Filters) */}
       <View style={styles.headerOverlay}>
-        <SearchBar onAvatarPress={() => (nav as any).navigate('Profile')} />
-        <FilterBar />
+        <View style={styles.topRow}>
+          <View style={styles.searchWrapper}>
+            <SearchBar onAvatarPress={() => (nav as any).navigate('Profile')} />
+          </View>
+        </View>
+
+        <View style={styles.subFilterRow}>
+          <RegionSelector />
+          <FilterBar />
+        </View>
       </View>
 
+      {/* In-App Navigation Turn-by-Turn HUD Banner */}
+      {activeNavigationShop && (
+        <View style={styles.navHudCard}>
+          <View style={styles.navHudLeft}>
+            <Text style={styles.navHudIcon}>🧭</Text>
+            <View>
+              <Text style={styles.navHudTitle} numberOfLines={1}>
+                Routing to {activeNavigationShop.name}
+              </Text>
+              <Text style={styles.navHudEta}>
+                🚶 8 mins ({formatDistance(activeNavigationShop.distance ?? 650)}) • Live Navigation
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.navEndBtn}
+            onPress={stopNavigation}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.navEndText}>✕ End</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Offline Mode Indicator Pill */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>📱 100% Offline Mode Active (Cached Hub)</Text>
+        </View>
+      )}
+
       {/* Floating GCash-accepted Filter Badge (Bottom Left) */}
-      <TouchableOpacity
-        style={[styles.gcashFloatingPill, gcashOnly && styles.gcashFloatingPillActive]}
-        onPress={toggleGcashOnly}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.gcashPillIcon}>🔵</Text>
-        <Text style={[styles.gcashPillText, gcashOnly && styles.gcashPillTextActive]}>
-          GCash-accepted
-        </Text>
-      </TouchableOpacity>
+      {!activeNavigationShop && (
+        <TouchableOpacity
+          style={[styles.gcashFloatingPill, gcashOnly && styles.gcashFloatingPillActive]}
+          onPress={toggleGcashOnly}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.gcashPillIcon}>🔵</Text>
+          <Text style={[styles.gcashPillText, gcashOnly && styles.gcashPillTextActive]}>
+            GCash-accepted
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Floating Location Target Button (Bottom Right) */}
       <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.85}>
         <Text style={styles.myLocationIcon}>🧭</Text>
       </TouchableOpacity>
 
-      {/* Loading Indicator Pill */}
+      {/* Loading Indicator */}
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="small" color={COLORS.primary} />
@@ -173,46 +237,46 @@ export const MapScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Bottom Sheet Drawer */}
-      <BottomSheet
-        ref={bottomSheetRef}
-        snapPoints={snapPoints}
-        index={0}
-        handleIndicatorStyle={styles.sheetHandle}
-        backgroundStyle={styles.sheetBg}
-      >
-        {/* Header matching mockup */}
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>
-            Nearby Hidden Gems <Text style={styles.sheetCount}>({shops.length} found)</Text>
-          </Text>
-        </View>
+      {/* Bottom Sheet Drawer (Hidden during active in-app navigation) */}
+      {!activeNavigationShop && (
+        <BottomSheet
+          ref={bottomSheetRef}
+          snapPoints={snapPoints}
+          index={0}
+          handleIndicatorStyle={styles.sheetHandle}
+          backgroundStyle={styles.sheetBg}
+        >
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>
+              Nearby Hidden Gems <Text style={styles.sheetCount}>({shops.length} found)</Text>
+            </Text>
+          </View>
 
-        {/* Scrollable list of nearby shops */}
-        <BottomSheetFlatList
-          data={shops}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ShopCard
-              shop={item}
-              onPress={handleShopPress}
-              onFavoritePress={toggleFavorite}
-              isFavorite={isFavorite(item.id)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>☕</Text>
-              <Text style={styles.emptyText}>
-                {isLoading
-                  ? 'Searching specialty spots…'
-                  : 'No spots match your filters. Try selecting "Specialty" or widening your search.'}
-              </Text>
-            </View>
-          }
-        />
-      </BottomSheet>
+          <BottomSheetFlatList
+            data={shops}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ShopCard
+                shop={item}
+                onPress={handleShopPress}
+                onFavoritePress={toggleFavorite}
+                isFavorite={isFavorite(item.id)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>☕</Text>
+                <Text style={styles.emptyText}>
+                  {isLoading
+                    ? 'Searching specialty spots…'
+                    : 'No spots match your filters. Try selecting "Specialty" or widening your search.'}
+                </Text>
+              </View>
+            }
+          />
+        </BottomSheet>
+      )}
     </View>
   );
 };
@@ -231,6 +295,91 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+    gap: 4,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  searchWrapper: {
+    flex: 1,
+  },
+  subFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: SPACING.md,
+    gap: 4,
+  },
+  navHudCard: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 120 : 85,
+    left: SPACING.md,
+    right: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md - 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    zIndex: 25,
+  },
+  navHudLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+    paddingRight: SPACING.xs,
+  },
+  navHudIcon: {
+    fontSize: 22,
+  },
+  navHudTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  navHudEta: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  navEndBtn: {
+    backgroundColor: '#FDEDEC',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#FADBD8',
+  },
+  navEndText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.danger,
+  },
+  offlineBanner: {
+    position: 'absolute',
+    top: 140,
+    alignSelf: 'center',
+    backgroundColor: '#FAF5ED',
+    borderWidth: 1,
+    borderColor: '#E8DBC8',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    zIndex: 15,
+  },
+  offlineText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#6E4822',
   },
   gcashFloatingPill: {
     position: 'absolute',
@@ -290,7 +439,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: 'absolute',
-    top: 135,
+    top: 175,
     alignSelf: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: 20,

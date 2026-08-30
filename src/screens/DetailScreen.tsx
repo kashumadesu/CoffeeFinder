@@ -1,5 +1,5 @@
 // ============================================================
-// DetailScreen — Specialty Café Detail View (Matching Mockup Screen 3)
+// DetailScreen — Specialty Café Detail View (With Community Tasting & In-App Routing)
 // ============================================================
 
 import React, { useEffect, useState } from 'react';
@@ -21,8 +21,10 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, SPACING, RADIUS, PRICE_LABELS } from '@constants';
 import { getPlaceDetails, formatDistance } from '@services/googlePlaces';
 import { useFavorites } from '@hooks/useFavorites';
+import { useStore } from '@store/useStore';
 import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
+import { TastingNotesSection } from '@components/TastingNotesSection';
 import type { CoffeeShop, RootStackParamList } from '@types';
 
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
@@ -37,6 +39,7 @@ export const DetailScreen: React.FC = () => {
   const [hoursExpanded, setHoursExpanded] = useState(false);
 
   const { toggleFavorite, isFavorite } = useFavorites();
+  const startNavigation = useStore((s) => s.startNavigation);
   const favorited = isFavorite(shop.id);
 
   // Fetch full details if needed
@@ -46,7 +49,7 @@ export const DetailScreen: React.FC = () => {
       .catch(() => {});
   }, [initialShop.id]);
 
-  // Open Native Directions
+  // Open Native Google/Apple Maps
   const handleDirections = () => {
     const { latitude, longitude } = shop.location;
     const label = encodeURIComponent(shop.name);
@@ -56,6 +59,12 @@ export const DetailScreen: React.FC = () => {
         android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
       }) ?? `https://maps.google.com?q=${latitude},${longitude}`;
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open Maps app.'));
+  };
+
+  // Start In-App Turn-by-Turn Map Routing
+  const handleInAppRoute = () => {
+    startNavigation(shop);
+    nav.goBack(); // returns to Map screen with Polyline & HUD active
   };
 
   const handleCall = () => {
@@ -191,16 +200,24 @@ export const DetailScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Action Row: Get Directions + Favorite */}
+            {/* Action Row: In-App Route & Native Directions */}
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={styles.directionsBtn}
-                onPress={handleDirections}
+                onPress={handleInAppRoute}
                 activeOpacity={0.88}
               >
                 <Text style={styles.directionsBtnText}>
-                  Get Directions{distanceText}
+                  Navigate In-App 🧭{distanceText}
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.externalMapsBtn}
+                onPress={handleDirections}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.externalMapsIcon}>🗺</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -260,7 +277,10 @@ export const DetailScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Shop Owner SaaS Promo Banner (Matching Mockup) */}
+        {/* Community Tasting Notes & Barista Brew Recipes Section */}
+        <TastingNotesSection shop={shop} />
+
+        {/* Shop Owner SaaS Promo Banner */}
         <TouchableOpacity
           style={styles.ownerBanner}
           onPress={handleOwnerPortal}
@@ -438,7 +458,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: 8,
     marginTop: 4,
   },
   directionsBtn: {
@@ -455,13 +475,26 @@ const styles = StyleSheet.create({
   },
   directionsBtnText: {
     color: '#FFFFFF',
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '700',
   },
+  externalMapsBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  externalMapsIcon: {
+    fontSize: 18,
+  },
   heartBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -469,7 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   heartBtnIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   contactDetails: {
     marginTop: SPACING.sm,
