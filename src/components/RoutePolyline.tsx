@@ -1,8 +1,8 @@
 // ============================================================
-// RoutePolyline — Real Road-Following Route via Google Directions API
+// RoutePolyline — Real Road-Following Route (Cached & Throttled)
 // ============================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Polyline } from 'react-native-maps';
 import polyline from '@mapbox/polyline';
 import { COLORS, GOOGLE_PLACES_API_KEY } from '@constants';
@@ -40,13 +40,95 @@ export const RoutePolyline: React.FC<Props> = ({
   mode = 'walking',
 }) => {
   const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
+  const lastOriginRef = useRef<Location | null>(null);
+  const lastDestRef = useRef<Location | null>(null);
+  const lastModeRef = useRef<string>(mode);
+  const routeCacheRef = useRef<Map<string, Coordinate[]>>(new Map());
 
   useEffect(() => {
     if (!origin || !destination) {
       setRouteCoords([]);
+      lastOriginRef.current = null;
+      lastDestRef.current = null;
       return;
     }
-    fetchRoute(origin, destination);
+
+    // Check if we already calculated this route or moved minimally (< ~60 meters)
+    if (
+      lastOriginRef.current &&
+      lastDestRef.current &&
+      lastModeRef.current === mode &&
+      lastDestRef.current.latitude === destination.latitude &&
+      lastDestRef.current.longitude === destination.longitude
+    ) {
+      const dLat = Math.abs(lastOriginRef.current.latitude - origin.latitude);
+      const dLng = Math.abs(lastOriginRef.current.longitude - origin.longitude);
+      if (dLat < 0.0006 && dLng < 0.0006) {
+        return; // Skip recalculation, user has not moved significantly
+      }
+    }
+
+    const cacheKey = `${origin.latitude.toFixed(3)},${origin.longitude.toFixed(3)}->${destination.latitude.toFixed(3)},${destination.longitude.toFixed(3)}_${mode}`;
+    const cached = routeCacheRef.current.get(cacheKey);
+    if (cached && cached.length > 0) {
+      setRouteCoords(cached);
+      lastOriginRef.current = origin;
+      lastDestRef.current = destination;
+      lastModeRef.current = mode;
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchRoute = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 second max timeout
+
+        const url =
+          `https://maps.googleapis.com/maps/api/directions/json` +
+          `?origin=${origin.latitude},${origin.longitude}` +
+          `&destination=${destination.latitude},${destination.longitude}` +
+          `&mode=${mode}` +
+          `&key=${GOOGLE_PLACES_API_KEY}`;
+
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const data = await response.json();
+
+        if (isCancelled) return;
+
+        if (data.status === 'OK' && data.routes && data.routes.length > 0) {
+          const encoded = data.routes[0].overview_polyline.points;
+          const decoded = polyline.decode(encoded);
+          const coords: Coordinate[] = decoded.map(([lat, lng]: [number, number]) => ({
+            latitude: lat,
+            longitude: lng,
+          }));
+          routeCacheRef.current.set(cacheKey, coords);
+          setRouteCoords(coords);
+        } else {
+          const fallback = generateStreetGridWaypoints(origin, destination);
+          routeCacheRef.current.set(cacheKey, fallback);
+          setRouteCoords(fallback);
+        }
+      } catch {
+        if (!isCancelled) {
+          const fallback = generateStreetGridWaypoints(origin, destination);
+          setRouteCoords(fallback);
+        }
+      }
+
+      lastOriginRef.current = origin;
+      lastDestRef.current = destination;
+      lastModeRef.current = mode;
+    };
+
+    fetchRoute();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [
     origin?.latitude,
     origin?.longitude,
@@ -55,36 +137,6 @@ export const RoutePolyline: React.FC<Props> = ({
     mode,
   ]);
 
-  const fetchRoute = async (orig: Location, dest: Location) => {
-    try {
-      const url =
-        `https://maps.googleapis.com/maps/api/directions/json` +
-        `?origin=${orig.latitude},${orig.longitude}` +
-        `&destination=${dest.latitude},${dest.longitude}` +
-        `&mode=${mode}` +
-        `&key=${GOOGLE_PLACES_API_KEY}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.status === 'OK' && data.routes && data.routes.length > 0) {
-        const encoded = data.routes[0].overview_polyline.points;
-        const decoded = polyline.decode(encoded);
-        const coords: Coordinate[] = decoded.map(([lat, lng]: [number, number]) => ({
-          latitude: lat,
-          longitude: lng,
-        }));
-        setRouteCoords(coords);
-      } else {
-        // Fallback: realistic urban street turn waypoints
-        setRouteCoords(generateStreetGridWaypoints(orig, dest));
-      }
-    } catch {
-      // Network or API error fallback
-      setRouteCoords(generateStreetGridWaypoints(orig, dest));
-    }
-  };
-
   if (!origin || !destination || routeCoords.length < 2) return null;
 
   return (
@@ -92,7 +144,7 @@ export const RoutePolyline: React.FC<Props> = ({
       {/* Outer Glow Route Border */}
       <Polyline
         coordinates={routeCoords}
-        strokeColor="rgba(42, 71, 54, 0.2)"
+        strokeColor="rgba(42, 71, 54, 0.22)"
         strokeWidth={9}
         lineCap="round"
         lineJoin="round"
@@ -100,7 +152,7 @@ export const RoutePolyline: React.FC<Props> = ({
       {/* Primary In-App Route Line */}
       <Polyline
         coordinates={routeCoords}
-        strokeColor={COLORS.primary}
+        strokeColor={mode === 'walking' ? COLORS.primary : '#2E6BE6'}
         strokeWidth={4.5}
         lineCap="round"
         lineJoin="round"

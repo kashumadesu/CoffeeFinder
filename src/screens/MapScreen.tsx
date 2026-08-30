@@ -41,6 +41,7 @@ export const MapScreen: React.FC = () => {
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const lastFetchRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const hasFramedRouteRef = useRef(false);
 
   const [layersModalVisible, setLayersModalVisible] = useState(false);
 
@@ -88,31 +89,36 @@ export const MapScreen: React.FC = () => {
     }
   }, [userLocation, activeNavigationShop, selectedShop]);
 
-  // Frame route or focus on selected shop
+  // Frame route on start or focus on selected shop
   useEffect(() => {
     if (activeNavigationShop && userLocation && mapRef.current) {
-      // Smoothly fit both user location & destination along the route
-      mapRef.current.fitToCoordinates([userLocation, activeNavigationShop.location], {
-        edgePadding: {
-          top: Platform.OS === 'ios' ? 190 : 150,
-          right: 50,
-          bottom: 180,
-          left: 50,
-        },
-        animated: true,
-      });
-    } else if (selectedShop && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: selectedShop.location.latitude - 0.003, // slight offset to leave room for preview card
-          longitude: selectedShop.location.longitude,
-          latitudeDelta: DELTA.small,
-          longitudeDelta: DELTA.small,
-        },
-        450,
-      );
+      if (!hasFramedRouteRef.current) {
+        hasFramedRouteRef.current = true;
+        mapRef.current.fitToCoordinates([userLocation, activeNavigationShop.location], {
+          edgePadding: {
+            top: Platform.OS === 'ios' ? 190 : 150,
+            right: 50,
+            bottom: 180,
+            left: 50,
+          },
+          animated: true,
+        });
+      }
+    } else {
+      hasFramedRouteRef.current = false;
+      if (selectedShop && mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: selectedShop.location.latitude - 0.003, // slight offset to leave room for preview card
+            longitude: selectedShop.location.longitude,
+            latitudeDelta: DELTA.small,
+            longitudeDelta: DELTA.small,
+          },
+          450,
+        );
+      }
     }
-  }, [selectedShop, activeNavigationShop, userLocation]);
+  }, [selectedShop, activeNavigationShop]);
 
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {
@@ -135,9 +141,11 @@ export const MapScreen: React.FC = () => {
     }
   }, [setSelectedShop, activeNavigationShop]);
 
-  // Throttled region change handler to prevent excessive re-renders
+  // Throttled region change handler (disabled while actively navigating to keep 60fps)
   const handleRegionChangeComplete = useCallback(
     (region: Region) => {
+      if (activeNavigationShop) return;
+
       const center = { latitude: region.latitude, longitude: region.longitude };
       if (lastFetchRef.current) {
         const dLat = Math.abs(lastFetchRef.current.latitude - center.latitude);
@@ -149,8 +157,23 @@ export const MapScreen: React.FC = () => {
       lastFetchRef.current = center;
       fetchNearbyShops(center);
     },
-    [fetchNearbyShops],
+    [fetchNearbyShops, activeNavigationShop],
   );
+
+  const handleRecenterRoute = () => {
+    hapticLight();
+    if (activeNavigationShop && userLocation && mapRef.current) {
+      mapRef.current.fitToCoordinates([userLocation, activeNavigationShop.location], {
+        edgePadding: {
+          top: Platform.OS === 'ios' ? 190 : 150,
+          right: 50,
+          bottom: 180,
+          left: 50,
+        },
+        animated: true,
+      });
+    }
+  };
 
   const handleMyLocation = () => {
     hapticLight();
@@ -296,6 +319,13 @@ export const MapScreen: React.FC = () => {
             </View>
 
             <View style={styles.navHudActions}>
+              <TouchableOpacity
+                style={styles.navRecenterBtn}
+                onPress={handleRecenterRoute}
+                activeOpacity={0.8}
+              >
+                <Feather name="crosshair" size={13} color={COLORS.primary} />
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.navDetailBtn}
                 onPress={() => nav.navigate('ShopDetail', { shop: activeNavigationShop })}
@@ -646,6 +676,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  navRecenterBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceSage,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navDetailBtn: {
     width: 32,

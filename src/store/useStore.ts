@@ -133,7 +133,6 @@ export const useStore = create<AppState>((set, get) => ({
 
   setUserLocation: (loc) => {
     set({ userLocation: loc });
-    get().fetchNearbyShops(loc);
   },
   setRegion: (region) => {
     const loc = { latitude: region.latitude, longitude: region.longitude };
