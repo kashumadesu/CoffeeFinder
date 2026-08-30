@@ -63,6 +63,7 @@ export const MapScreen: React.FC = () => {
   const startNavigation = useStore((s) => s.startNavigation);
   const stopNavigation = useStore((s) => s.stopNavigation);
   const loadTastingNotes = useStore((s) => s.loadTastingNotes);
+  const searchQuery = useStore((s) => s.filters.searchQuery);
 
   // Hooks
   useLocation();
@@ -119,6 +120,25 @@ export const MapScreen: React.FC = () => {
       }
     }
   }, [selectedShop, activeNavigationShop]);
+
+  // When search query produces results, snap bottom sheet up and smoothly center on top match
+  useEffect(() => {
+    if (searchQuery.trim().length > 0 && shops.length > 0 && mapRef.current && !activeNavigationShop) {
+      bottomSheetRef.current?.snapToIndex(1);
+      const topShop = shops[0];
+      if (topShop) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: topShop.location.latitude - 0.003,
+            longitude: topShop.location.longitude,
+            latitudeDelta: DELTA.small * 1.5,
+            longitudeDelta: DELTA.small * 1.5,
+          },
+          450,
+        );
+      }
+    }
+  }, [searchQuery, shops.length, activeNavigationShop]);
 
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {

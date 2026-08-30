@@ -9,9 +9,9 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, REGION_HUBS } from '@constants';
 import { useStore } from '@store/useStore';

@@ -11,6 +11,9 @@ import {
   onAuthStateChanged,
   type User,
 } from 'firebase/auth';
+// @ts-ignore
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getFirestore,
   collection,
@@ -46,8 +49,16 @@ const firebaseConfig = {
 // Initialize Firebase App safely
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Auth, Firestore, and Cloud Storage
-const auth = getAuth(app);
+// Initialize Auth with React Native persistence to persist login sessions across app restarts
+let auth: ReturnType<typeof getAuth>;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  });
+} catch {
+  auth = getAuth(app);
+}
+
 const db = getFirestore(app);
 const storage = getStorage(app);
 

@@ -86,46 +86,99 @@ export async function searchNearbyCoffee(
     GOOGLE_PLACES_API_KEY.includes('YOUR_') ||
     GOOGLE_PLACES_API_KEY.length < 10;
 
+  const isSearch = filters.searchQuery.trim().length > 0;
+  const searchQueryText = filters.searchQuery.trim();
+
   if (!isPlaceholderKey) {
     try {
-      const params = {
-        location: `${userLocation.latitude},${userLocation.longitude}`,
-        radius: filters.radiusMetres,
-        type: PLACE_TYPES,
-        keyword: SEARCH_KEYWORD,
-        region: 'PH',
-        key: GOOGLE_PLACES_API_KEY,
-        ...(filters.openNow ? { opennow: true } : {}),
-      };
+      let rawResults: NearbyResult[] = [];
 
-      const response = await axios.get(`${GOOGLE_PLACES_BASE_URL}/nearbysearch/json`, {
-        params,
-        timeout: 4000,
-      });
+      if (isSearch) {
+        // User typed a search term (e.g. "tbc", "Starbucks", "Chapter", "Novaliches cafe")
+        // Run Google Places Text Search (wide radius up to 25km) to find all neighborhood & unverified spots!
+        const queryTerm =
+          searchQueryText.toLowerCase().includes('cafe') ||
+          searchQueryText.toLowerCase().includes('coffee')
+            ? searchQueryText
+            : `${searchQueryText} cafe`;
 
-      if (response.data.status === 'OK' && Array.isArray(response.data.results)) {
-        const liveShops: CoffeeShop[] = response.data.results.map((r: NearbyResult) => ({
+        const [textSearchRes, nearbyRes] = await Promise.allSettled([
+          axios.get(`${GOOGLE_PLACES_BASE_URL}/textsearch/json`, {
+            params: {
+              query: queryTerm,
+              location: `${userLocation.latitude},${userLocation.longitude}`,
+              radius: 25000,
+              region: 'PH',
+              key: GOOGLE_PLACES_API_KEY,
+            },
+            timeout: 5000,
+          }),
+          axios.get(`${GOOGLE_PLACES_BASE_URL}/nearbysearch/json`, {
+            params: {
+              location: `${userLocation.latitude},${userLocation.longitude}`,
+              radius: 12000,
+              type: PLACE_TYPES,
+              keyword: searchQueryText,
+              region: 'PH',
+              key: GOOGLE_PLACES_API_KEY,
+            },
+            timeout: 5000,
+          }),
+        ]);
+
+        if (textSearchRes.status === 'fulfilled' && textSearchRes.value.data?.results) {
+          rawResults.push(...textSearchRes.value.data.results);
+        }
+        if (nearbyRes.status === 'fulfilled' && nearbyRes.value.data?.results) {
+          rawResults.push(...nearbyRes.value.data.results);
+        }
+      } else {
+        // Standard regional discovery when not searching
+        const params = {
+          location: `${userLocation.latitude},${userLocation.longitude}`,
+          radius: filters.radiusMetres,
+          type: PLACE_TYPES,
+          keyword: SEARCH_KEYWORD,
+          region: 'PH',
+          key: GOOGLE_PLACES_API_KEY,
+          ...(filters.openNow ? { opennow: true } : {}),
+        };
+
+        const response = await axios.get(`${GOOGLE_PLACES_BASE_URL}/nearbysearch/json`, {
+          params,
+          timeout: 4500,
+        });
+
+        if (response.data.status === 'OK' && Array.isArray(response.data.results)) {
+          rawResults.push(...response.data.results);
+        }
+      }
+
+      if (rawResults.length > 0) {
+        const liveShops: CoffeeShop[] = rawResults.map((r: any) => ({
           id: r.place_id,
           name: r.name,
-          vicinity: r.vicinity,
+          vicinity: r.vicinity ?? r.formatted_address ?? 'Philippines',
           location: { latitude: r.geometry.location.lat, longitude: r.geometry.location.lng },
-          rating: r.rating ?? 4.5,
-          userRatingsTotal: r.user_ratings_total ?? 100,
+          rating: r.rating ?? 4.3,
+          userRatingsTotal: r.user_ratings_total ?? 30,
           openNow: r.opening_hours?.open_now ?? true,
-          photos: r.photos?.map((p) => ({
+          photos: r.photos?.map((p: any) => ({
             photoReference: p.photo_reference,
             width: p.width,
             height: p.height,
           })) as Photo[],
           priceLevel: r.price_level ?? 2,
+          priceRange: { min: 90, max: 190, average: 140, currency: '₱' },
           types: r.types,
-          isVerified: true,
+          isVerified: false, // General / unverified neighborhood spots!
+          claimStatus: 'unclaimed',
           acceptsGcash: true,
           isSpecialty: true,
           hasOutlets: true,
-          wifiSpeed: 'Fast (100 Mbps+)',
+          wifiSpeed: 'Available',
           seatingStatus: 'moderate',
-          vibeTags: ['#SpecialtySpot', '#WorkFromCafe', '#SingleOrigin'],
+          vibeTags: ['#CoffeeSpot', '#NeighborhoodCafe'],
           distance: getDistanceMetres(userLocation, {
             latitude: r.geometry.location.lat,
             longitude: r.geometry.location.lng,
@@ -147,16 +200,17 @@ export async function searchNearbyCoffee(
   // Merge unique by name or id
   const map = new Map<string, CoffeeShop>();
   for (const shop of [...curatedSpots, ...combinedShops]) {
-    if (!map.has(shop.name.toLowerCase())) {
-      map.set(shop.name.toLowerCase(), shop);
+    const key = (shop.id || shop.name).toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, shop);
     }
   }
 
   let results = Array.from(map.values());
 
   // Deep Search: café name, vicinity, city, tags, menu items, bean origin & roast level
-  if (filters.searchQuery.trim().length > 0) {
-    const q = filters.searchQuery.toLowerCase();
+  if (isSearch) {
+    const q = searchQueryText.toLowerCase();
     results = results.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
@@ -185,8 +239,9 @@ export async function searchNearbyCoffee(
     });
   }
 
-  // Category filter
-  if (filters.activeCategory && filters.activeCategory !== 'all') {
+  // Category filter: Only applied if NOT searching, or if user explicitly selected a non-specialty category chip
+  const shouldFilterCategory = !isSearch || filters.activeCategory !== 'specialty';
+  if (shouldFilterCategory && filters.activeCategory && filters.activeCategory !== 'all') {
     results = results.filter((s) => matchesCategory(s, filters.activeCategory));
   }
 
