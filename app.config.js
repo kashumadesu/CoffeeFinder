@@ -3,8 +3,8 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: 'Coffee Finder',
-    slug: 'coffee-finder',
+    name: 'KapeRoute: Coffee Finder PH',
+    slug: 'kaperoute',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -20,11 +20,11 @@ export default {
       bundleIdentifier: 'com.coffeefinder.ph',
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
-          'Coffee Finder uses your location to discover nearby specialty coffee shops in the Philippines and provide road navigation.',
+          'KapeRoute uses your location to discover nearby specialty coffee shops in the Philippines and provide turn-by-turn road navigation.',
         NSCameraUsageDescription:
-          'Coffee Finder uses your camera to photograph DTI and Mayor business permits for owner verification and share coffee tasting notes.',
+          'KapeRoute uses your camera to photograph DTI and Mayor business permits for owner verification and share coffee tasting notes.',
         NSPhotoLibraryUsageDescription:
-          'Coffee Finder accesses your photo library to upload business permits for verification and café tasting photos.',
+          'KapeRoute accesses your photo library to upload business permits for verification and café tasting photos.',
       },
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -54,16 +54,16 @@ export default {
         'expo-location',
         {
           locationAlwaysAndWhenInUsePermission:
-            'Coffee Finder needs your location to find nearby specialty coffee spots.',
+            'KapeRoute needs your location to find nearby specialty coffee spots and provide road routing.',
         },
       ],
       [
         'expo-image-picker',
         {
           photosPermission:
-            'Allow Coffee Finder to access your photos to upload business permits and coffee tasting pictures.',
+            'Allow KapeRoute to access your photos to upload business permits and coffee tasting pictures.',
           cameraPermission:
-            'Allow Coffee Finder to access your camera to photograph business permits for owner verification and latte art.',
+            'Allow KapeRoute to access your camera to photograph business permits for owner verification and latte art.',
         },
       ],
       'expo-web-browser',

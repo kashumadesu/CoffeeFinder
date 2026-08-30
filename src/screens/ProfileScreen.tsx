@@ -428,7 +428,7 @@ export const ProfileScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.authModalCard}>
             <View style={styles.authModalHeader}>
-              <Text style={styles.authModalTitle}>Sign In to Coffee Finder</Text>
+              <Text style={styles.authModalTitle}>Sign In to KapeRoute</Text>
               <TouchableOpacity onPress={() => setAuthModalVisible(false)}>
                 <Feather name="x" size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
@@ -521,7 +521,7 @@ export const ProfileScreen: React.FC = () => {
             {/* Legal Agreement Disclaimer */}
             <View style={styles.legalDisclaimerRow}>
               <Text style={styles.legalDisclaimerText}>
-                By continuing, you agree to Coffee Finder's{' '}
+                By continuing, you agree to KapeRoute's{' '}
                 <Text
                   style={styles.legalLink}
                   onPress={() => {
@@ -591,14 +591,14 @@ export const ProfileScreen: React.FC = () => {
 
                   <Text style={styles.legalHeading}>3. Payment Processing</Text>
                   <Text style={styles.legalParagraph}>
-                    SaaS subscriptions are processed through PayMongo (regulated by the Bangko Sentral ng Pilipinas). Coffee Finder does not store credit card credentials or GCash MPINs.
+                    SaaS subscriptions are processed through PayMongo (regulated by the Bangko Sentral ng Pilipinas). KapeRoute does not store credit card credentials or GCash MPINs.
                   </Text>
                 </View>
               ) : (
                 <View style={styles.legalContentBox}>
                   <Text style={styles.legalHeading}>1. Acceptance of Terms</Text>
                   <Text style={styles.legalParagraph}>
-                    By using Coffee Finder, you agree to comply with these terms. If you do not agree, please discontinue using the service.
+                    By using KapeRoute: Coffee Finder PH, you agree to comply with these terms. If you do not agree, please discontinue using the service.
                   </Text>
 
                   <Text style={styles.legalHeading}>2. Café Owner Verification</Text>

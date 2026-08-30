@@ -130,11 +130,11 @@ export const DetailScreen: React.FC = () => {
         ? `Signature: ${shop.menuHighlights[0].name}. `
         : '';
       const vibe = shop.vibeTags?.length ? `Vibe: ${shop.vibeTags.join(', ')}. ` : '';
-      const message = `Check out this specialty coffee spot on Coffee Finder PH: ${shop.name} in ${shop.vicinity}! Price: ₱${minPrice}–₱${maxPrice}/cup. ${signature}${vibe}https://coffeefinder.ph/shop/${shop.id}`;
+      const message = `Check out this coffee spot on KapeRoute: Coffee Finder PH: ${shop.name} in ${shop.vicinity}! Price: ₱${minPrice}–₱${maxPrice}/cup. ${signature}${vibe}https://kaperoute.ph/shop/${shop.id}`;
       hapticLight();
       logShareEvent(shop.id, shop.name);
       await Share.share({
-        title: `Coffee Finder PH: ${shop.name}`,
+        title: `KapeRoute: ${shop.name}`,
         message,
       });
     } catch {}

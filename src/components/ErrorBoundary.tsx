@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
               activeOpacity={0.85}
             >
               <Feather name="refresh-cw" size={16} color="#FFFFFF" />
-              <Text style={styles.restartBtnText}>Reload Coffee Finder</Text>
+              <Text style={styles.restartBtnText}>Reload KapeRoute</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
