@@ -25,6 +25,7 @@ import { COLORS, SPACING, RADIUS, PRICE_LABELS } from '@constants';
 import { getPlaceDetails, formatDistance } from '@services/googlePlaces';
 import { useFavorites } from '@hooks/useFavorites';
 import { hapticLight, hapticSuccess, hapticSelection } from '@utils/haptics';
+import { logBaristaTipEvent, logShareEvent } from '@services/analytics';
 import { useStore } from '@store/useStore';
 import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
@@ -43,10 +44,35 @@ export const DetailScreen: React.FC = () => {
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [menuActiveCategory, setMenuActiveCategory] = useState<string>('All');
+  const [tipModalVisible, setTipModalVisible] = useState(false);
+  const [selectedTipAmount, setSelectedTipAmount] = useState<number>(50);
 
   const { toggleFavorite, isFavorite } = useFavorites();
   const startNavigation = useStore((s) => s.startNavigation);
   const favorited = isFavorite(shop.id);
+
+  const handleSendGcashTip = async () => {
+    logBaristaTipEvent(shop.id, shop.name, selectedTipAmount);
+    hapticSuccess();
+    setTipModalVisible(false);
+    const gcashUrl = 'gcash://';
+    try {
+      const canOpen = await Linking.canOpenURL(gcashUrl);
+      if (canOpen) {
+        Linking.openURL(gcashUrl);
+      } else {
+        Alert.alert(
+          'Barista Tip Ready',
+          `Send ₱${selectedTipAmount} to GCash number: ${shop.merchantGcashNumber ?? '0917-888-CAFE'}\n\nAccount: ${shop.name} Barista Fund`,
+        );
+      }
+    } catch {
+      Alert.alert(
+        'Barista Tip Ready',
+        `Send ₱${selectedTipAmount} to GCash number: ${shop.merchantGcashNumber ?? '0917-888-CAFE'}\n\nAccount: ${shop.name} Barista Fund`,
+      );
+    }
+  };
 
   // Fetch full details if needed
   useEffect(() => {
@@ -106,6 +132,7 @@ export const DetailScreen: React.FC = () => {
       const vibe = shop.vibeTags?.length ? `Vibe: ${shop.vibeTags.join(', ')}. ` : '';
       const message = `Check out this specialty coffee spot on Coffee Finder PH: ${shop.name} in ${shop.vicinity}! Price: ₱${minPrice}–₱${maxPrice}/cup. ${signature}${vibe}https://coffeefinder.ph/shop/${shop.id}`;
       hapticLight();
+      logShareEvent(shop.id, shop.name);
       await Share.share({
         title: `Coffee Finder PH: ${shop.name}`,
         message,
@@ -283,6 +310,19 @@ export const DetailScreen: React.FC = () => {
                     <Feather name="chevron-right" size={13} color={COLORS.primary} />
                   </TouchableOpacity>
                 )}
+
+                {/* Barista Virtual Tip Jar Button */}
+                <TouchableOpacity
+                  style={styles.tipBaristaBtn}
+                  onPress={() => setTipModalVisible(true)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.tipBtnLeft}>
+                    <View style={styles.gcashDotSmall} />
+                    <Text style={styles.tipBtnText}>Tip the Baristas (GCash)</Text>
+                  </View>
+                  <Feather name="gift" size={14} color={COLORS.primary} />
+                </TouchableOpacity>
               </View>
             )}
 
@@ -474,6 +514,80 @@ export const DetailScreen: React.FC = () => {
                   </View>
                 ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Barista Virtual Tip Jar Modal */}
+      <Modal
+        visible={tipModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTipModalVisible(false)}
+      >
+        <View style={styles.menuModalOverlay}>
+          <View style={styles.tipModalCard}>
+            <View style={styles.tipModalHeader}>
+              <View style={styles.tipHeaderTitleCol}>
+                <Text style={styles.tipModalTitle}>Barista Tip Jar</Text>
+                <Text style={styles.tipModalSub}>
+                  Support the specialty craft baristas at {shop.name}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setTipModalVisible(false)}>
+                <Feather name="x" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.tipAmountPrompt}>Choose tip amount:</Text>
+            <View style={styles.tipAmountsRow}>
+              {[20, 50, 100, 200].map((amt) => (
+                <TouchableOpacity
+                  key={amt}
+                  style={[
+                    styles.tipAmountChip,
+                    selectedTipAmount === amt && styles.tipAmountChipActive,
+                  ]}
+                  onPress={() => {
+                    hapticSelection();
+                    setSelectedTipAmount(amt);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tipAmountText,
+                      selectedTipAmount === amt && styles.tipAmountTextActive,
+                    ]}
+                  >
+                    ₱{amt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.merchantGcashBox}>
+              <View style={styles.gcashHeaderRow}>
+                <View style={styles.gcashDotLarge} />
+                <Text style={styles.merchantGcashTitle}>GCash Direct / QR</Text>
+              </View>
+              <Text style={styles.merchantGcashNumber}>
+                {shop.merchantGcashNumber ?? '0917-888-2233'}
+              </Text>
+              <Text style={styles.merchantGcashName}>
+                Verified Account: {shop.name} Barista Fund
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.sendTipSubmitBtn}
+              onPress={handleSendGcashTip}
+              activeOpacity={0.88}
+            >
+              <Feather name="send" size={16} color="#FFFFFF" />
+              <Text style={styles.sendTipSubmitText}>
+                Send ₱{selectedTipAmount} Tip via GCash
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -983,5 +1097,142 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  tipBaristaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3F8F5',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: '#CDE5D7',
+    marginTop: 4,
+  },
+  tipBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  gcashDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.gcash,
+  },
+  tipBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  tipModalCard: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+  tipModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  tipHeaderTitleCol: {
+    flex: 1,
+  },
+  tipModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  tipModalSub: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  tipAmountPrompt: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  tipAmountsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tipAmountChip: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    paddingVertical: 12,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipAmountChipActive: {
+    backgroundColor: COLORS.surfaceSage,
+    borderColor: COLORS.primary,
+  },
+  tipAmountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  tipAmountTextActive: {
+    color: COLORS.primary,
+    fontWeight: '900',
+  },
+  merchantGcashBox: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: RADIUS.sm,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#C7E1FC',
+    gap: 3,
+  },
+  gcashHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  gcashDotLarge: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: COLORS.gcash,
+  },
+  merchantGcashTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#005BBB',
+  },
+  merchantGcashNumber: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.5,
+  },
+  merchantGcashName: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  sendTipSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.gcash,
+    paddingVertical: 14,
+    borderRadius: RADIUS.full,
+    gap: 8,
+    marginTop: 4,
+  },
+  sendTipSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

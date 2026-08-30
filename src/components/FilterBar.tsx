@@ -7,6 +7,8 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SPECIALTY_CATEGORIES } from '@constants';
 import { useStore } from '@store/useStore';
+import { hapticSelection } from '@utils/haptics';
+import { logFilterEvent } from '@services/analytics';
 import type { CategoryFilter, PriceTierFilter } from '@types';
 
 export const FilterBar: React.FC = () => {
@@ -16,18 +18,15 @@ export const FilterBar: React.FC = () => {
   const setPriceTier = useStore((s) => s.setPriceTier);
 
   const handlePress = (cat: (typeof SPECIALTY_CATEGORIES)[0]) => {
+    hapticSelection();
     if (cat.isPrice && cat.tier) {
-      if (priceTier === cat.tier) {
-        setPriceTier('all');
-      } else {
-        setPriceTier(cat.tier as PriceTierFilter);
-      }
+      const nextTier = priceTier === cat.tier ? 'all' : (cat.tier as PriceTierFilter);
+      setPriceTier(nextTier);
+      logFilterEvent('price_tier', nextTier);
     } else {
-      if (activeCategory === cat.id) {
-        setCategory('all');
-      } else {
-        setCategory(cat.id as CategoryFilter);
-      }
+      const nextCat = activeCategory === cat.id ? 'all' : (cat.id as CategoryFilter);
+      setCategory(nextCat);
+      logFilterEvent('category', nextCat);
     }
   };
 

@@ -10,18 +10,23 @@ import {
   Modal,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, REGION_HUBS } from '@constants';
 import { useStore } from '@store/useStore';
+import { hapticSuccess, hapticSelection } from '@utils/haptics';
 import type { RegionHub } from '@types';
 
 export const RegionSelector: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const currentRegion = useStore((s) => s.currentRegion);
   const setRegion = useStore((s) => s.setRegion);
+  const downloadTrekPack = useStore((s) => s.downloadTrekPack);
+  const isTrekPackDownloaded = useStore((s) => s.isTrekPackDownloaded);
 
   const handleSelect = (hub: RegionHub) => {
+    hapticSelection();
     setRegion(hub);
     setModalVisible(false);
   };
@@ -58,6 +63,8 @@ export const RegionSelector: React.FC = () => {
 
             {REGION_HUBS.map((hub) => {
               const isSelected = hub.id === currentRegion.id;
+              const isDownloaded = isTrekPackDownloaded(hub.id);
+
               return (
                 <TouchableOpacity
                   key={hub.id}
@@ -71,7 +78,34 @@ export const RegionSelector: React.FC = () => {
                     </Text>
                     <Text style={styles.hubIsland}>{hub.island}</Text>
                   </View>
-                  {isSelected && <Feather name="check" size={16} color={COLORS.primary} />}
+
+                  <View style={styles.hubRightCol}>
+                    {isDownloaded ? (
+                      <View style={styles.downloadedBadge}>
+                        <Feather name="check" size={11} color={COLORS.verified} />
+                        <Text style={styles.downloadedBadgeText}>Offline Ready</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.downloadActionBtn}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          downloadTrekPack(hub);
+                          hapticSuccess();
+                          Alert.alert(
+                            'Trek Pack Downloaded',
+                            `Downloaded 100% offline map, café menus, and road navigation for ${hub.name}.`,
+                          );
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Feather name="download-cloud" size={11} color={COLORS.primary} />
+                        <Text style={styles.downloadActionText}>Save Pack</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {isSelected && <Feather name="check-circle" size={16} color={COLORS.primary} />}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -162,5 +196,42 @@ const styles = StyleSheet.create({
   hubIsland: {
     fontSize: 11.5,
     color: COLORS.textSecondary,
+  },
+  hubRightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  downloadedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF4EE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#C6E4D0',
+  },
+  downloadedBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.verified,
+  },
+  downloadActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSage,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+  },
+  downloadActionText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
 });

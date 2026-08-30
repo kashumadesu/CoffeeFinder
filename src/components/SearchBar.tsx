@@ -7,6 +7,7 @@ import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
+import { logSearchEvent } from '@services/analytics';
 
 interface Props {
   onAvatarPress?: () => void;
@@ -15,6 +16,14 @@ interface Props {
 export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
   const searchQuery = useStore((s) => s.filters.searchQuery);
   const setSearchQuery = useStore((s) => s.setSearchQuery);
+  const currentRegion = useStore((s) => s.currentRegion.id);
+  const shopsCount = useStore((s) => s.shops.length);
+
+  const handleSubmit = () => {
+    if (searchQuery.trim()) {
+      logSearchEvent(searchQuery, currentRegion, shopsCount);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -27,6 +36,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
           placeholderTextColor={COLORS.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onSubmitEditing={handleSubmit}
           returnKeyType="search"
           clearButtonMode="while-editing"
         />

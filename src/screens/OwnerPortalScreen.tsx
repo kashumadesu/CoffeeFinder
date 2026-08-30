@@ -95,6 +95,7 @@ export const OwnerPortalScreen: React.FC = () => {
   const rejectClaim = useStore((s) => s.rejectClaim);
   const isShopClaimed = useStore((s) => s.isShopClaimed);
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
+  const liveHeartbeatEvents = useStore((s) => s.liveHeartbeatEvents);
 
   // Portal View Mode: Owner vs Admin/Support
   const [activePortalTab, setActivePortalTab] = useState<'owner' | 'admin'>('owner');
@@ -524,6 +525,47 @@ export const OwnerPortalScreen: React.FC = () => {
                       </View>
                       <Text style={styles.verifiedCafeAddress}>{activeShop.vicinity}</Text>
                     </View>
+                  </View>
+                </View>
+
+                {/* Live Customer Heartbeat Feed (Telemetry Alerts) */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <View style={styles.livePulseDot} />
+                      <Text style={styles.sectionTitle}>Customer Heartbeat</Text>
+                    </View>
+                    <View style={styles.liveStreamBadge}>
+                      <Text style={styles.liveStreamBadgeText}>Live Feed</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.helperText}>
+                    Real-time customer discovery and in-app navigation to your shop:
+                  </Text>
+
+                  <View style={styles.heartbeatList}>
+                    {liveHeartbeatEvents.map((hb) => (
+                      <View key={hb.id} style={styles.heartbeatItem}>
+                        <View style={styles.heartbeatIconCircle}>
+                          <Feather
+                            name={
+                              hb.type === 'navigation'
+                                ? 'navigation'
+                                : hb.type === 'favorite'
+                                ? 'heart'
+                                : 'coffee'
+                            }
+                            size={11}
+                            color={COLORS.primary}
+                          />
+                        </View>
+                        <View style={styles.heartbeatTextCol}>
+                          <Text style={styles.heartbeatMsg}>{hb.message}</Text>
+                          <Text style={styles.heartbeatTime}>{hb.timeAgo}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 </View>
 
@@ -2127,5 +2169,60 @@ const styles = StyleSheet.create({
   fullInspectionImage: {
     width: '100%',
     height: '80%',
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00D665',
+  },
+  liveStreamBadge: {
+    backgroundColor: '#E6F9EE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#B0ECC8',
+  },
+  liveStreamBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00873D',
+  },
+  heartbeatList: {
+    gap: 8,
+    marginTop: 4,
+  },
+  heartbeatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 10,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    gap: 10,
+  },
+  heartbeatIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSage,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartbeatTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  heartbeatMsg: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    lineHeight: 16,
+  },
+  heartbeatTime: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
   },
 });

@@ -113,6 +113,20 @@ export interface CoffeeShop {
   // Community Tasting & Brew Recipes
   tastingNotes?: TastingNote[];
   brewRecipe?: BrewRecipe;
+
+  // Merchant Barista Tip Jar
+  merchantGcashNumber?: string;
+  merchantGcashQrUrl?: string;
+}
+
+export interface HeartbeatEvent {
+  id: string;
+  shopId: string;
+  shopName: string;
+  type: 'navigation' | 'favorite' | 'tasting_note' | 'tip';
+  message: string;
+  timeAgo: string;
+  timestamp: number;
 }
 
 export interface OpeningHours {

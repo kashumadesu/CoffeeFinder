@@ -14,6 +14,7 @@ import type {
   MapTypeOption,
   OwnerClaimRequest,
   PriceTierFilter,
+  HeartbeatEvent,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
@@ -24,6 +25,14 @@ import {
   rejectClaimInFirestore,
   subscribeToFirestoreClaims,
 } from '@services/firebase';
+import {
+  logSearchEvent,
+  logFilterEvent,
+  logNavigationEvent,
+  logFavoriteEvent,
+  logTrekPackDownloaded,
+  logOwnerClaimEvent,
+} from '@services/analytics';
 import type { User } from 'firebase/auth';
 
 const FAVORITES_KEY = '@coffee_finder:favorites_v2';
@@ -31,6 +40,7 @@ const TASTING_NOTES_KEY = '@coffee_finder:tasting_notes_v2';
 const CACHED_SHOPS_KEY = '@coffee_finder:cached_shops_v2';
 const MAP_TYPE_KEY = '@coffee_finder:map_type_v1';
 const CLAIMS_KEY = '@coffee_finder:claims_v1';
+const TREK_PACKS_KEY = '@coffee_finder:trek_packs_v1';
 
 interface AppState {
   // ---- location & regional hubs ----
@@ -99,6 +109,17 @@ interface AppState {
   loadFavorites: () => Promise<void>;
   toggleFavorite: (shop: CoffeeShop) => Promise<void>;
   isFavorite: (id: string) => boolean;
+
+  // ---- offline mountain trek packs ----
+  downloadedTrekPacks: string[];
+  loadTrekPacks: () => Promise<void>;
+  downloadTrekPack: (region: RegionHub) => Promise<void>;
+  removeTrekPack: (regionId: string) => Promise<void>;
+  isTrekPackDownloaded: (regionId: string) => boolean;
+
+  // ---- live owner heartbeat notifications ----
+  liveHeartbeatEvents: HeartbeatEvent[];
+  addHeartbeatEvent: (event: Omit<HeartbeatEvent, 'id' | 'timestamp' | 'timeAgo'>) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -130,7 +151,16 @@ export const useStore = create<AppState>((set, get) => ({
   activeNavigationShop: null,
   navigationMode: 'walking',
   setNavigationMode: (mode) => set({ navigationMode: mode }),
-  startNavigation: (shop) => set({ activeNavigationShop: shop, selectedShop: shop }),
+  startNavigation: (shop) => {
+    set({ activeNavigationShop: shop, selectedShop: shop });
+    logNavigationEvent(shop.id, shop.name, get().navigationMode, shop.distance ?? 650);
+    get().addHeartbeatEvent({
+      shopId: shop.id,
+      shopName: shop.name,
+      type: 'navigation',
+      message: `A coffee lover is navigating to ${shop.name} (${get().navigationMode} mode)!`,
+    });
+  },
   stopNavigation: () => set({ activeNavigationShop: null }),
 
   // ---- shops & offline cache ----
@@ -384,10 +414,82 @@ export const useStore = create<AppState>((set, get) => ({
     const exists = favorites.some((f) => f.id === shop.id);
     const updated = exists ? favorites.filter((f) => f.id !== shop.id) : [...favorites, shop];
     set({ favorites: updated });
+    logFavoriteEvent(shop.id, shop.name, !exists);
+    if (!exists) {
+      get().addHeartbeatEvent({
+        shopId: shop.id,
+        shopName: shop.name,
+        type: 'favorite',
+        message: `A coffee lover added ${shop.name} to their saved spots!`,
+      });
+    }
     try {
       await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
     } catch {}
   },
 
   isFavorite: (id: string) => get().favorites.some((f) => f.id === id),
+
+  // ---- offline mountain trek packs ----
+  downloadedTrekPacks: [],
+  loadTrekPacks: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(TREK_PACKS_KEY);
+      if (raw) set({ downloadedTrekPacks: JSON.parse(raw) });
+    } catch {}
+  },
+  downloadTrekPack: async (region) => {
+    try {
+      const current = get().downloadedTrekPacks;
+      if (!current.includes(region.id)) {
+        const updated = [...current, region.id];
+        set({ downloadedTrekPacks: updated });
+        await AsyncStorage.setItem(TREK_PACKS_KEY, JSON.stringify(updated));
+        logTrekPackDownloaded(region.id, region.name);
+      }
+    } catch {}
+  },
+  removeTrekPack: async (regionId) => {
+    try {
+      const updated = get().downloadedTrekPacks.filter((id) => id !== regionId);
+      set({ downloadedTrekPacks: updated });
+      await AsyncStorage.setItem(TREK_PACKS_KEY, JSON.stringify(updated));
+    } catch {}
+  },
+  isTrekPackDownloaded: (regionId) => {
+    return get().downloadedTrekPacks.includes(regionId);
+  },
+
+  // ---- live owner heartbeat notifications ----
+  liveHeartbeatEvents: [
+    {
+      id: 'hb-1',
+      shopId: 'ph-chapter-coffee',
+      shopName: 'Chapter Coffee Roasters',
+      type: 'navigation',
+      message: 'A coffee lover started navigating to Chapter Coffee (Walk mode)',
+      timeAgo: 'Just now',
+      timestamp: Date.now() - 60000,
+    },
+    {
+      id: 'hb-2',
+      shopId: 'ph-yardstick',
+      shopName: 'Yardstick Coffee',
+      type: 'favorite',
+      message: 'A user saved your Golden Ticket espresso to their Coffee Passport',
+      timeAgo: '12m ago',
+      timestamp: Date.now() - 720000,
+    },
+  ],
+  addHeartbeatEvent: (ev) => {
+    const newEvent: HeartbeatEvent = {
+      id: `hb-${Date.now()}`,
+      timestamp: Date.now(),
+      timeAgo: 'Just now',
+      ...ev,
+    };
+    set((s) => ({
+      liveHeartbeatEvents: [newEvent, ...s.liveHeartbeatEvents].slice(0, 10),
+    }));
+  },
 }));
