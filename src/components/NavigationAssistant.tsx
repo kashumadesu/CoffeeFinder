@@ -1,6 +1,7 @@
 // ============================================================
 // NavigationAssistant — Google Maps-Style Turn-by-Turn Guidance HUD
 // Multi-Modal: Walk (🚶), Motor (🏍️), 4-Wheels (🚗), Rail (🚆)
+// Smart fallback & rail validation: alerts user if no train line exists
 // ============================================================
 
 import React, { useState } from 'react';
@@ -35,8 +36,8 @@ function getManeuverIcon(maneuver: string, instruction?: string): keyof typeof F
   const m = (maneuver || '').toLowerCase();
   const inst = (instruction || '').toLowerCase();
 
-  if (inst.includes('mrt') || inst.includes('lrt') || inst.includes('train') || inst.includes('rail')) {
-    return 'git-commit';
+  if (inst.includes('mrt') || inst.includes('lrt') || inst.includes('train') || inst.includes('rail') || inst.includes('board')) {
+    return 'layers';
   }
   if (m.includes('right')) return 'corner-up-right';
   if (m.includes('left')) return 'corner-up-left';
@@ -65,6 +66,8 @@ export const NavigationAssistant: React.FC<Props> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [stepsModalVisible, setStepsModalVisible] = useState(false);
 
+  const isTransitUnavailable = navigationMode === 'transit' && route?.hasTransitOption === false;
+
   const steps = route?.steps ?? [];
   const currentStep: NavigationStep | undefined = steps[currentStepIndex] || steps[0];
   const nextStep: NavigationStep | undefined = steps[currentStepIndex + 1];
@@ -87,53 +90,112 @@ export const NavigationAssistant: React.FC<Props> = ({
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Top Turn-by-Turn Guidance Card (Google Maps Green Header) */}
-      <View style={styles.topCard}>
-        <View style={styles.turnRow}>
-          {/* Big Maneuver Icon Circle */}
-          <View style={styles.turnIconCircle}>
-            <Feather name={iconName} size={28} color="#FFFFFF" />
-          </View>
-
-          {/* Turn Instruction Text */}
-          <View style={styles.instructionCol}>
-            <Text style={styles.distanceToTurn}>
-              {currentStep?.distanceText ? `In ${currentStep.distanceText}` : 'Follow route'}
-            </Text>
-            <Text style={styles.instructionText} numberOfLines={2}>
-              {currentStep?.instruction || `Proceed to ${shop.name}`}
-            </Text>
-            {nextStep && (
-              <Text style={styles.nextStepHint} numberOfLines={1}>
-                Then: {nextStep.instruction}
+      {/* Top Turn-by-Turn Guidance Card */}
+      {isTransitUnavailable ? (
+        // Transit Unavailable Alert Card
+        <View style={styles.transitUnavailableCard}>
+          <View style={styles.transitWarningRow}>
+            <View style={styles.transitWarningIconCircle}>
+              <Feather name="alert-triangle" size={24} color="#FFE082" />
+            </View>
+            <View style={styles.transitWarningTextCol}>
+              <Text style={styles.transitWarningTitle}>No Direct Train / Rail Line</Text>
+              <Text style={styles.transitWarningSub}>
+                There are no active MRT, LRT, or PNR rail stations connecting directly to {shop.name}.
               </Text>
-            )}
+            </View>
           </View>
-
-          {/* Step Navigation Arrows */}
-          {steps.length > 1 && (
-            <View style={styles.stepArrowsCol}>
+          <View style={styles.transitSuggestionRow}>
+            <Text style={styles.transitSuggestionLabel}>Recommended Alternatives:</Text>
+            <View style={styles.transitAltBtnGroup}>
               <TouchableOpacity
-                style={[styles.stepArrowBtn, currentStepIndex === 0 && styles.stepArrowDisabled]}
-                onPress={handlePrevStep}
-                disabled={currentStepIndex === 0}
+                style={styles.transitAltBtn}
+                onPress={() => {
+                  hapticSelection();
+                  onModeChange('motorcycle');
+                }}
+                activeOpacity={0.85}
               >
-                <Feather name="chevron-up" size={16} color={currentStepIndex === 0 ? 'rgba(255,255,255,0.3)' : '#FFFFFF'} />
+                <Feather name="zap" size={13} color="#FFFFFF" />
+                <Text style={styles.transitAltBtnText}>Motor (Fastest)</Text>
               </TouchableOpacity>
-              <Text style={styles.stepFractionText}>
-                {currentStepIndex + 1}/{steps.length}
-              </Text>
               <TouchableOpacity
-                style={[styles.stepArrowBtn, currentStepIndex === steps.length - 1 && styles.stepArrowDisabled]}
-                onPress={handleNextStep}
-                disabled={currentStepIndex === steps.length - 1}
+                style={[styles.transitAltBtn, styles.transitAltBtnCar]}
+                onPress={() => {
+                  hapticSelection();
+                  onModeChange('driving');
+                }}
+                activeOpacity={0.85}
               >
-                <Feather name="chevron-down" size={16} color={currentStepIndex === steps.length - 1 ? 'rgba(255,255,255,0.3)' : '#FFFFFF'} />
+                <Feather name="compass" size={13} color="#FFFFFF" />
+                <Text style={styles.transitAltBtnText}>Car / 4-Wheels</Text>
               </TouchableOpacity>
             </View>
-          )}
+          </View>
         </View>
-      </View>
+      ) : (
+        // Standard Google Maps Turn-by-Turn Guidance Card (Dark Forest Green)
+        <View style={styles.topCard}>
+          <View style={styles.turnRow}>
+            {/* Big Maneuver Icon Circle */}
+            <View style={styles.turnIconCircle}>
+              <Feather name={iconName} size={28} color="#FFFFFF" />
+            </View>
+
+            {/* Turn Instruction Text */}
+            <View style={styles.instructionCol}>
+              <View style={styles.turnHeaderRow}>
+                <Text style={styles.distanceToTurn}>
+                  {currentStep?.distanceText ? `In ${currentStep.distanceText}` : 'Follow route'}
+                </Text>
+                {navigationMode === 'motorcycle' && (
+                  <View style={styles.motorBadge}>
+                    <Text style={styles.motorBadgeText}>Traffic Filtered</Text>
+                  </View>
+                )}
+                {navigationMode === 'transit' && route?.transitSummary && (
+                  <View style={styles.transitBadge}>
+                    <Text style={styles.transitBadgeText} numberOfLines={1}>
+                      {route.transitSummary}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.instructionText} numberOfLines={2}>
+                {currentStep?.instruction || `Proceed to ${shop.name}`}
+              </Text>
+              {nextStep && (
+                <Text style={styles.nextStepHint} numberOfLines={1}>
+                  Then: {nextStep.instruction}
+                </Text>
+              )}
+            </View>
+
+            {/* Step Navigation Arrows */}
+            {steps.length > 1 && (
+              <View style={styles.stepArrowsCol}>
+                <TouchableOpacity
+                  style={[styles.stepArrowBtn, currentStepIndex === 0 && styles.stepArrowDisabled]}
+                  onPress={handlePrevStep}
+                  disabled={currentStepIndex === 0}
+                >
+                  <Feather name="chevron-up" size={16} color={currentStepIndex === 0 ? 'rgba(255,255,255,0.3)' : '#FFFFFF'} />
+                </TouchableOpacity>
+                <Text style={styles.stepFractionText}>
+                  {currentStepIndex + 1}/{steps.length}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.stepArrowBtn, currentStepIndex === steps.length - 1 && styles.stepArrowDisabled]}
+                  onPress={handleNextStep}
+                  disabled={currentStepIndex === steps.length - 1}
+                >
+                  <Feather name="chevron-down" size={16} color={currentStepIndex === steps.length - 1 ? 'rgba(255,255,255,0.3)' : '#FFFFFF'} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Bottom Floating Navigation HUD & Controls */}
       <View style={styles.bottomBar}>
@@ -141,17 +203,21 @@ export const NavigationAssistant: React.FC<Props> = ({
         <View style={styles.bottomTopRow}>
           <View style={styles.etaLeftCol}>
             <Text style={styles.etaTime}>
-              {route ? route.durationText : 'Calculating…'}
+              {isTransitUnavailable ? 'No Rail Line' : route ? route.durationText : 'Calculating…'}
             </Text>
             <Text style={styles.etaSub} numberOfLines={1}>
-              {route ? `${route.distanceText} • to ${shop.name}` : shop.name}
+              {isTransitUnavailable
+                ? `Choose Motor or Car to navigate`
+                : route
+                ? `${route.distanceText} • to ${shop.name}`
+                : shop.name}
             </Text>
           </View>
 
           {/* Right Action Icons */}
           <View style={styles.actionsRow}>
             {/* View All Steps Button */}
-            {steps.length > 0 && (
+            {!isTransitUnavailable && steps.length > 0 && (
               <TouchableOpacity
                 style={styles.actionCircleBtn}
                 onPress={() => {
@@ -164,9 +230,11 @@ export const NavigationAssistant: React.FC<Props> = ({
             )}
 
             {/* Recenter Route Button */}
-            <TouchableOpacity style={styles.actionCircleBtn} onPress={onRecenter}>
-              <Feather name="crosshair" size={16} color={COLORS.primary} />
-            </TouchableOpacity>
+            {!isTransitUnavailable && (
+              <TouchableOpacity style={styles.actionCircleBtn} onPress={onRecenter}>
+                <Feather name="crosshair" size={16} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
 
             {/* End Navigation Button */}
             <TouchableOpacity style={styles.endBtn} onPress={onEndNavigation}>
@@ -318,12 +386,41 @@ const styles = StyleSheet.create({
   instructionCol: {
     flex: 1,
   },
+  turnHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   distanceToTurn: {
     fontSize: 12,
     fontWeight: '800',
     color: '#9FE8B4', // Mint green highlight
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  motorBadge: {
+    backgroundColor: 'rgba(255, 145, 0, 0.25)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  motorBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#FFB74D',
+    textTransform: 'uppercase',
+  },
+  transitBadge: {
+    backgroundColor: 'rgba(224, 64, 251, 0.25)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    maxWidth: 140,
+  },
+  transitBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#F48FB1',
   },
   instructionText: {
     fontSize: 14.5,
@@ -356,6 +453,86 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginVertical: 1,
   },
+
+  // Transit Unavailable Alert Card
+  transitUnavailableCard: {
+    marginTop: Platform.OS === 'ios' ? 52 : 40,
+    marginHorizontal: SPACING.md,
+    backgroundColor: '#3E2723', // Dark Warm Brown Alert
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: 'rgba(255, 224, 130, 0.3)',
+  },
+  transitWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  transitWarningIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 224, 130, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transitWarningTextCol: {
+    flex: 1,
+  },
+  transitWarningTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#FFE082',
+  },
+  transitWarningSub: {
+    fontSize: 11.5,
+    color: '#FFF8E1',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  transitSuggestionRow: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  transitSuggestionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFE082',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  transitAltBtnGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  transitAltBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FF6D00', // Motor orange
+    borderRadius: RADIUS.md,
+    paddingVertical: 8,
+  },
+  transitAltBtnCar: {
+    backgroundColor: '#1A73E8', // Car blue
+  },
+  transitAltBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
   // Bottom ETA HUD Banner
   bottomBar: {
     marginBottom: Platform.OS === 'ios' ? 24 : 16,

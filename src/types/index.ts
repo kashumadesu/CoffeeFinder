@@ -199,6 +199,12 @@ export interface NavigationStep {
   distanceMeters: number;
   durationText: string;
   maneuver: string;
+  travelMode?: 'WALKING' | 'DRIVING' | 'TRANSIT' | 'BICYCLING';
+  transitLine?: string;
+  transitVehicle?: string;
+  departureStop?: string;
+  arrivalStop?: string;
+  numStops?: number;
   startLocation: Location;
   endLocation: Location;
 }
@@ -210,4 +216,8 @@ export interface NavigationRoute {
   distanceText: string;
   durationText: string;
   steps: NavigationStep[];
+  mode: NavigationMode;
+  hasTransitOption?: boolean;
+  transitSummary?: string;
+  transitUnavailableReason?: string;
 }
