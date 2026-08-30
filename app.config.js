@@ -17,7 +17,7 @@ export default {
     assetBundlePatterns: ['**/*'],
     ios: {
       supportsTablet: false,
-      bundleIdentifier: 'com.yourcompany.coffeefinder',
+      bundleIdentifier: 'com.coffeefinder.ph',
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
           'Coffee Finder uses your location to discover nearby specialty coffee shops in the Philippines and provide road navigation.',
@@ -35,7 +35,7 @@ export default {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#2A4736',
       },
-      package: 'com.yourcompany.coffeefinder',
+      package: 'com.coffeefinder.ph',
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
