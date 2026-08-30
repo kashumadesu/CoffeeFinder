@@ -62,7 +62,7 @@ export const logCafeView = (shopId: string, shopName: string, vicinity: string) 
 export const logNavigationEvent = (
   shopId: string,
   shopName: string,
-  mode: 'walking' | 'driving',
+  mode: string,
   distanceM: number,
 ) => {
   return logEvent('navigation_started', {

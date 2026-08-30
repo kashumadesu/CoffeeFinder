@@ -178,6 +178,8 @@ export const DEFAULT_FILTERS: Filters = {
 
 // ---- Navigation types ----
 
+export type NavigationMode = 'walking' | 'motorcycle' | 'driving' | 'transit';
+
 export type RootTabParamList = {
   Discover: undefined;
   Saved: undefined;

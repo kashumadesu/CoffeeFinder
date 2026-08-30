@@ -15,6 +15,7 @@ import type {
   OwnerClaimRequest,
   PriceTierFilter,
   HeartbeatEvent,
+  NavigationMode,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
@@ -31,7 +32,6 @@ import {
   logNavigationEvent,
   logFavoriteEvent,
   logTrekPackDownloaded,
-  logOwnerClaimEvent,
 } from '@services/analytics';
 import type { User } from 'firebase/auth';
 
@@ -53,9 +53,9 @@ interface AppState {
 
   // ---- in-app map navigation mode ----
   activeNavigationShop: CoffeeShop | null;
-  navigationMode: 'walking' | 'driving';
-  setNavigationMode: (mode: 'walking' | 'driving') => void;
-  startNavigation: (shop: CoffeeShop) => void;
+  navigationMode: NavigationMode;
+  setNavigationMode: (mode: NavigationMode) => void;
+  startNavigation: (shop: CoffeeShop, mode?: NavigationMode) => void;
   stopNavigation: () => void;
 
   // ---- shops ----
@@ -150,14 +150,18 @@ export const useStore = create<AppState>((set, get) => ({
   activeNavigationShop: null,
   navigationMode: 'walking',
   setNavigationMode: (mode) => set({ navigationMode: mode }),
-  startNavigation: (shop) => {
-    set({ activeNavigationShop: shop, selectedShop: shop });
-    logNavigationEvent(shop.id, shop.name, get().navigationMode, shop.distance ?? 650);
+  startNavigation: (shop, mode) => {
+    set({
+      activeNavigationShop: shop,
+      selectedShop: shop,
+      ...(mode ? { navigationMode: mode } : {}),
+    });
+    logNavigationEvent(shop.id, shop.name, mode || get().navigationMode, shop.distance ?? 650);
     get().addHeartbeatEvent({
       shopId: shop.id,
       shopName: shop.name,
       type: 'navigation',
-      message: `A coffee lover is navigating to ${shop.name} (${get().navigationMode} mode)!`,
+      message: `A coffee lover is navigating to ${shop.name} (${mode || get().navigationMode} mode)!`,
     });
   },
   stopNavigation: () => set({ activeNavigationShop: null }),

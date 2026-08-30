@@ -33,8 +33,8 @@ import { NavigationAssistant } from '@components/NavigationAssistant';
 import { ShopCard } from '@components/ShopCard';
 import { RatingStars } from '@components/RatingStars';
 import { formatDistance } from '@services/googlePlaces';
-import { fetchDirectionsRoute } from '@services/directions';
-import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute } from '@types';
+import { fetchDirectionsRoute, generateFallbackRoute } from '@services/directions';
+import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute, NavigationMode } from '@types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -112,31 +112,37 @@ export const MapScreen: React.FC = () => {
     }
 
     const origin = userLocation || DEFAULT_REGION;
-    let isCancelled = false;
+    
+    // Set immediate initial route so polyline renders on Frame 0 instantly
+    const initialRoute = generateFallbackRoute(origin, activeNavigationShop.location, navigationMode);
+    setNavigationRoute(initialRoute);
 
-    const loadLiveRoute = async () => {
-      const route = await fetchDirectionsRoute(origin, activeNavigationShop.location, navigationMode);
-      if (!isCancelled) {
-        setNavigationRoute(route);
-        if (mapRef.current) {
-          mapRef.current.fitToCoordinates([origin, activeNavigationShop.location], {
-            edgePadding: {
-              top: Platform.OS === 'ios' ? 180 : 140,
-              right: 60,
-              bottom: 160,
-              left: 60,
-            },
-            animated: true,
-          });
-        }
+    // Frame camera immediately to fit route
+    if (mapRef.current) {
+      mapRef.current.fitToCoordinates([origin, activeNavigationShop.location], {
+        edgePadding: {
+          top: Platform.OS === 'ios' ? 180 : 140,
+          right: 60,
+          bottom: 160,
+          left: 60,
+        },
+        animated: true,
+      });
+    }
+
+    let isMounted = true;
+
+    // Fetch full precision road coordinates and turn-by-turn steps from Google Directions
+    fetchDirectionsRoute(origin, activeNavigationShop.location, navigationMode).then((liveRoute) => {
+      if (isMounted && liveRoute) {
+        setNavigationRoute(liveRoute);
       }
-    };
+    });
 
-    loadLiveRoute();
     return () => {
-      isCancelled = true;
+      isMounted = false;
     };
-  }, [activeNavigationShop?.id, navigationMode, userLocation?.latitude, userLocation?.longitude, selectedShop]);
+  }, [activeNavigationShop?.id, navigationMode]);
 
   // When search query produces results, snap bottom sheet up and smoothly center on top match
   useEffect(() => {
@@ -264,6 +270,7 @@ export const MapScreen: React.FC = () => {
           <RoutePolyline
             coordinates={navigationRoute?.coordinates || []}
             mode={navigationMode}
+            mapType={mapType}
           />
         )}
 
