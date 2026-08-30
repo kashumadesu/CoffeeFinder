@@ -314,8 +314,8 @@ export const MapScreen: React.FC = () => {
 
           <BottomSheetFlatList
             data={shops}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+            keyExtractor={(item: CoffeeShop) => item.id}
+            renderItem={({ item }: { item: CoffeeShop }) => (
               <ShopCard
                 shop={item}
                 onPress={handleShopPress}
