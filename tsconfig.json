@@ -12,15 +12,25 @@
     "target": "esnext",
     "baseUrl": "./src",
     "paths": {
+      "@components": ["components"],
       "@components/*": ["components/*"],
+      "@screens": ["screens"],
       "@screens/*": ["screens/*"],
+      "@hooks": ["hooks"],
       "@hooks/*": ["hooks/*"],
+      "@services": ["services"],
       "@services/*": ["services/*"],
+      "@store": ["store"],
       "@store/*": ["store/*"],
+      "@navigation": ["navigation"],
       "@navigation/*": ["navigation/*"],
+      "@types": ["types"],
       "@types/*": ["types/*"],
-      "@constants/*": ["constants/*"]
+      "@constants": ["constants"],
+      "@constants/*": ["constants/*"],
+      "@env": ["types/env.d.ts"]
     }
   },
-  "exclude": ["node_modules", "babel.config.js"]
+  "exclude": ["node_modules", "babel.config.js"],
+  "extends": "expo/tsconfig.base"
 }

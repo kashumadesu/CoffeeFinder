@@ -1,18 +1,11 @@
 // ============================================================
-// ShopCard — used in List view and bottom sheet
+// ShopCard — Specialty Café Preview Card
 // ============================================================
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { COLORS, SPACING, RADIUS, getPhotoUrl, PRICE_LABELS } from '@constants';
 import { formatDistance } from '@services/googlePlaces';
-
 import { RatingStars } from './RatingStars';
 import type { CoffeeShop } from '@types';
 
@@ -31,15 +24,15 @@ export const ShopCard: React.FC<Props> = ({
   isFavorite = false,
   compact = false,
 }) => {
-  const photoUrl = shop.photos?.[0]
-    ? getPhotoUrl(shop.photos[0].photoReference, 400)
-    : null;
+  const photoUrl =
+    shop.galleryUrls?.[0] ??
+    (shop.photos?.[0] ? getPhotoUrl(shop.photos[0].photoReference, 400) : null);
 
   return (
     <TouchableOpacity
       style={[styles.card, compact && styles.cardCompact]}
       onPress={() => onPress(shop)}
-      activeOpacity={0.85}
+      activeOpacity={0.88}
     >
       {/* Thumbnail */}
       <View style={styles.imageContainer}>
@@ -50,7 +43,6 @@ export const ShopCard: React.FC<Props> = ({
             <Text style={styles.imagePlaceholderIcon}>☕</Text>
           </View>
         )}
-        {/* Open/Closed badge */}
         {shop.openNow !== undefined && (
           <View style={[styles.badge, shop.openNow ? styles.badgeOpen : styles.badgeClosed]}>
             <Text style={styles.badgeText}>{shop.openNow ? 'Open' : 'Closed'}</Text>
@@ -60,23 +52,60 @@ export const ShopCard: React.FC<Props> = ({
 
       {/* Info */}
       <View style={styles.info}>
+        {/* Title + Verified */}
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>{shop.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {shop.name}
+          </Text>
+          {shop.isVerified && <Text style={styles.verifiedIcon}>✓</Text>}
           {shop.priceLevel !== undefined && (
             <Text style={styles.price}>{PRICE_LABELS[shop.priceLevel]}</Text>
           )}
         </View>
 
-        <Text style={styles.address} numberOfLines={1}>{shop.vicinity}</Text>
+        {/* Address */}
+        <Text style={styles.address} numberOfLines={1}>
+          {shop.vicinity}
+        </Text>
 
+        {/* Rating + Distance */}
         <View style={styles.metaRow}>
           {shop.rating !== undefined && (
-            <RatingStars rating={shop.rating} count={shop.userRatingsTotal} size={12} />
+            <RatingStars
+              rating={shop.rating}
+              count={shop.userRatingsTotal}
+              size={12}
+              showGcash={shop.acceptsGcash}
+            />
           )}
           {shop.distance !== undefined && (
-            <Text style={styles.distance}>{formatDistance(shop.distance)}</Text>
+            <Text style={styles.distance}>• {formatDistance(shop.distance)}</Text>
           )}
         </View>
+
+        {/* Vibe Tags */}
+        {shop.vibeTags && shop.vibeTags.length > 0 && (
+          <View style={styles.tagsRow}>
+            {shop.vibeTags.slice(0, 2).map((tag, idx) => (
+              <View
+                key={tag}
+                style={[
+                  styles.tagPill,
+                  idx === 0 ? styles.tagGreen : styles.tagBrown,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagText,
+                    idx === 0 ? styles.tagGreenText : styles.tagBrownText,
+                  ]}
+                >
+                  {tag}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Favorite button */}
@@ -84,7 +113,7 @@ export const ShopCard: React.FC<Props> = ({
         <TouchableOpacity
           style={styles.favoriteBtn}
           onPress={() => onFavoritePress(shop)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Text style={[styles.heartIcon, isFavorite && styles.heartIconActive]}>
             {isFavorite ? '❤️' : '🤍'}
@@ -101,11 +130,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     marginHorizontal: SPACING.md,
-    marginVertical: SPACING.xs,
-    overflow: 'hidden',
+    marginVertical: 5,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
@@ -113,8 +144,10 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.sm,
   },
   imageContainer: {
-    width: 90,
-    height: 90,
+    width: 92,
+    height: 92,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
     position: 'relative',
   },
   image: {
@@ -131,40 +164,92 @@ const styles = StyleSheet.create({
   imagePlaceholderIcon: { fontSize: 32 },
   badge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 5,
+    left: 5,
     borderRadius: RADIUS.full,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   badgeOpen: { backgroundColor: COLORS.success },
   badgeClosed: { backgroundColor: COLORS.danger },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  badgeText: { color: '#fff', fontSize: 9.5, fontWeight: '700' },
   info: {
     flex: 1,
-    padding: SPACING.sm,
+    paddingLeft: SPACING.sm + 2,
     justifyContent: 'center',
+    gap: 3,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
   name: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
     color: COLORS.textPrimary,
+    flexShrink: 1,
+  },
+  verifiedIcon: {
+    color: '#27AE60',
+    fontSize: 12,
+    fontWeight: '900',
+    backgroundColor: '#E8F6ED',
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
   },
   price: {
-    fontSize: 13,
-    color: COLORS.primaryLight,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    marginLeft: 2,
+  },
+  address: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  distance: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 2,
+  },
+  tagPill: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tagGreen: {
+    backgroundColor: COLORS.tagGreenBg,
+  },
+  tagBrown: {
+    backgroundColor: COLORS.tagBrownBg,
+  },
+  tagText: {
+    fontSize: 10,
     fontWeight: '600',
   },
-  address: { fontSize: 12, color: COLORS.textSecondary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 2 },
-  distance: { fontSize: 12, color: COLORS.accent, fontWeight: '600' },
+  tagGreenText: {
+    color: COLORS.tagGreen,
+  },
+  tagBrownText: {
+    color: COLORS.tagBrown,
+  },
   favoriteBtn: {
     justifyContent: 'center',
-    paddingRight: SPACING.sm,
+    paddingRight: 6,
   },
-  heartIcon: { fontSize: 20 },
+  heartIcon: { fontSize: 18 },
   heartIconActive: {},
 });

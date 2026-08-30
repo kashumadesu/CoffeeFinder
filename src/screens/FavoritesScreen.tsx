@@ -1,15 +1,10 @@
 // ============================================================
-// FavoritesScreen — saved coffee shops list with persistence
+// FavoritesScreen — Saved Specialty Spots
 // ============================================================
 
 import React, { useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
@@ -30,12 +25,12 @@ export const FavoritesScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Favorites</Text>
+        <Text style={styles.headerTitle}>🔖 Saved Specialty Spots</Text>
         {favorites.length > 0 && (
           <Text style={styles.headerSubtitle}>
-            {favorites.length} saved {favorites.length === 1 ? 'shop' : 'shops'}
+            {favorites.length} saved {favorites.length === 1 ? 'café' : 'cafés'}
           </Text>
         )}
       </View>
@@ -54,10 +49,10 @@ export const FavoritesScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>❤️</Text>
-            <Text style={styles.emptyTitle}>No favorites yet</Text>
+            <Text style={styles.emptyIcon}>☕</Text>
+            <Text style={styles.emptyTitle}>No saved spots yet</Text>
             <Text style={styles.emptySubtitle}>
-              Tap the heart icon on any coffee shop to save it here.
+              Tap the heart on any specialty café in the Discover map to bookmark it here for your next coffee run.
             </Text>
           </View>
         }
@@ -67,31 +62,49 @@ export const FavoritesScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   header: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
     color: COLORS.primary,
-    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-  listContent: { paddingTop: SPACING.xs, paddingBottom: 100 },
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: SPACING.md },
-  emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  listContent: {
+    paddingVertical: SPACING.sm,
+    paddingBottom: 90,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: SPACING.xl,
+    gap: SPACING.sm,
+  },
+  emptyIcon: {
+    fontSize: 50,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: SPACING.xl,
+    lineHeight: 19,
   },
 });

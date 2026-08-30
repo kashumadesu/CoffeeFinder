@@ -1,36 +1,45 @@
 // ============================================================
-// Zustand Global Store
-// Holds: nearby shops, user location, active filters, favorites,
-//        selected shop (for bottom sheet), loading/error state.
+// Zustand Global Store — Specialty Coffee Edition
 // ============================================================
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CoffeeShop, Filters, Location } from '@types';
+import type { CoffeeShop, Filters, Location, LiveSeatingStatus } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
+import { DEFAULT_REGION } from '@constants';
 
-const FAVORITES_KEY = '@coffee_finder:favorites';
+const FAVORITES_KEY = '@coffee_finder:favorites_v2';
 
 interface AppState {
   // ---- location ----
-  userLocation: Location | null;
+  userLocation: Location;
   setUserLocation: (loc: Location) => void;
 
   // ---- shops ----
   shops: CoffeeShop[];
   isLoading: boolean;
   error: string | null;
-  fetchNearbyShops: (location: Location) => Promise<void>;
+  fetchNearbyShops: (location?: Location) => Promise<void>;
 
-  // ---- selected shop (map pin tap / bottom sheet) ----
+  // ---- selected shop ----
   selectedShop: CoffeeShop | null;
   setSelectedShop: (shop: CoffeeShop | null) => void;
 
   // ---- filters ----
   filters: Filters;
   setFilters: (filters: Partial<Filters>) => void;
+  setCategory: (category: Filters['activeCategory']) => void;
+  setSearchQuery: (query: string) => void;
+  toggleGcashOnly: () => void;
   applyFilters: () => void;
+
+  // ---- owner portal (SaaS live updates) ----
+  updateShopLiveStatus: (
+    shopId: string,
+    seatingStatus: LiveSeatingStatus,
+    wifiSpeed?: string,
+  ) => void;
 
   // ---- favorites ----
   favorites: CoffeeShop[];
@@ -40,22 +49,29 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
-  // ---- location ----
-  userLocation: null,
-  setUserLocation: (loc) => set({ userLocation: loc }),
+  // Default centered on Quezon City (Tomas Morato area)
+  userLocation: {
+    latitude: DEFAULT_REGION.latitude,
+    longitude: DEFAULT_REGION.longitude,
+  },
+  setUserLocation: (loc) => {
+    set({ userLocation: loc });
+    get().fetchNearbyShops(loc);
+  },
 
   // ---- shops ----
   shops: [],
   isLoading: false,
   error: null,
 
-  fetchNearbyShops: async (location: Location) => {
+  fetchNearbyShops: async (location?: Location) => {
+    const loc = location ?? get().userLocation;
     set({ isLoading: true, error: null });
     try {
-      const shops = await searchNearbyCoffee(location, get().filters);
+      const shops = await searchNearbyCoffee(loc, get().filters);
       set({ shops, isLoading: false });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
+      const msg = err instanceof Error ? err.message : 'Error finding coffee shops';
       set({ error: msg, isLoading: false });
     }
   },
@@ -66,10 +82,48 @@ export const useStore = create<AppState>((set, get) => ({
 
   // ---- filters ----
   filters: DEFAULT_FILTERS,
-  setFilters: (partial) => set((s) => ({ filters: { ...s.filters, ...partial } })),
+  setFilters: (partial) => {
+    set((s) => ({ filters: { ...s.filters, ...partial } }));
+    get().applyFilters();
+  },
+  setCategory: (activeCategory) => {
+    set((s) => ({ filters: { ...s.filters, activeCategory } }));
+    get().applyFilters();
+  },
+  setSearchQuery: (searchQuery) => {
+    set((s) => ({ filters: { ...s.filters, searchQuery } }));
+    get().applyFilters();
+  },
+  toggleGcashOnly: () => {
+    set((s) => ({ filters: { ...s.filters, gcashOnly: !s.filters.gcashOnly } }));
+    get().applyFilters();
+  },
   applyFilters: () => {
     const loc = get().userLocation;
-    if (loc) get().fetchNearbyShops(loc);
+    get().fetchNearbyShops(loc);
+  },
+
+  // ---- owner portal SaaS update ----
+  updateShopLiveStatus: (shopId, seatingStatus, wifiSpeed) => {
+    set((state) => ({
+      shops: state.shops.map((s) =>
+        s.id === shopId
+          ? {
+              ...s,
+              seatingStatus,
+              wifiSpeed: wifiSpeed ?? s.wifiSpeed,
+            }
+          : s,
+      ),
+      selectedShop:
+        state.selectedShop?.id === shopId
+          ? {
+              ...state.selectedShop,
+              seatingStatus,
+              wifiSpeed: wifiSpeed ?? state.selectedShop.wifiSpeed,
+            }
+          : state.selectedShop,
+    }));
   },
 
   // ---- favorites ----
@@ -80,7 +134,7 @@ export const useStore = create<AppState>((set, get) => ({
       const raw = await AsyncStorage.getItem(FAVORITES_KEY);
       if (raw) set({ favorites: JSON.parse(raw) });
     } catch {
-      // silently ignore storage errors
+      // silently ignore
     }
   },
 
