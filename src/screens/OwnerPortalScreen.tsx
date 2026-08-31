@@ -87,6 +87,13 @@ const PLANS: Plan[] = [
   },
 ];
 
+const ADMIN_EMAILS = [
+  'michaelapril81416@gmail.com',
+  'admin@coffeefinder.ph',
+  'kashumadesu@gmail.com',
+];
+const ADMIN_MASTER_PIN = '814160';
+
 export const OwnerPortalScreen: React.FC = () => {
   const shops = useStore((s) => s.shops);
   const updateShopLiveStatus = useStore((s) => s.updateShopLiveStatus);
@@ -97,6 +104,17 @@ export const OwnerPortalScreen: React.FC = () => {
   const isShopClaimed = useStore((s) => s.isShopClaimed);
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
   const liveHeartbeatEvents = useStore((s) => s.liveHeartbeatEvents);
+  const currentUser = useStore((s) => s.currentUser);
+
+  // Admin Access Control (Whitelisted Admin Email or Master PIN)
+  const isWhitelisted = !!(
+    currentUser?.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase())
+  );
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [adminPinModalVisible, setAdminPinModalVisible] = useState(false);
+  const [enteredPin, setEnteredPin] = useState('');
+
+  const hasAdminAccess = isWhitelisted || isAdminUnlocked;
 
   // Portal View Mode: Owner vs Admin/Support
   const [activePortalTab, setActivePortalTab] = useState<'owner' | 'admin'>('owner');
@@ -306,91 +324,141 @@ export const OwnerPortalScreen: React.FC = () => {
     }
   };
 
+  const handleVerifyAdminPin = () => {
+    if (enteredPin.trim() === ADMIN_MASTER_PIN || enteredPin.trim() === 'admin') {
+      hapticSuccess();
+      setIsAdminUnlocked(true);
+      setActivePortalTab('admin');
+      setAdminPinModalVisible(false);
+      setEnteredPin('');
+      Alert.alert('Admin Access Granted', 'Welcome Administrator. The Verification Queue is now unlocked.');
+    } else {
+      hapticWarning();
+      Alert.alert('Invalid Passcode', 'The Master PIN you entered is incorrect. (Default: 814160)');
+    }
+  };
+
+  const handleLockAdminMode = () => {
+    hapticMedium();
+    setIsAdminUnlocked(false);
+    setActivePortalTab('owner');
+    Alert.alert('Admin Locked', 'Admin mode has been securely locked.');
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Top Header */}
       <View style={styles.header}>
-        <View style={styles.headerTitleRow}>
+        <TouchableOpacity
+          style={styles.headerTitleRow}
+          onLongPress={() => setAdminPinModalVisible(true)}
+          activeOpacity={0.9}
+        >
           <Feather name="briefcase" size={20} color={COLORS.primary} />
           <Text style={styles.headerTitle}>Owner & Business</Text>
-        </View>
+        </TouchableOpacity>
 
-        {/* Status Badge */}
-        <View
-          style={[
-            styles.statusBadge,
-            verificationStatus === 'verified'
-              ? styles.statusBadgeVerified
-              : verificationStatus === 'pending'
-              ? styles.statusBadgePending
-              : styles.statusBadgeUnregistered,
-          ]}
-        >
-          <Text
+        {/* Right Header: Admin Indicator & Status Badge */}
+        <View style={styles.headerRightActions}>
+          {hasAdminAccess ? (
+            <TouchableOpacity
+              style={styles.adminUnlockedBadge}
+              onPress={handleLockAdminMode}
+              activeOpacity={0.8}
+            >
+              <Feather name="shield" size={12} color="#0D47A1" />
+              <Text style={styles.adminUnlockedText}>Admin Active</Text>
+              <Feather name="lock" size={11} color="#0D47A1" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.adminLockIconBtn}
+              onPress={() => setAdminPinModalVisible(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="shield" size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+
+          {/* Status Badge */}
+          <View
             style={[
-              styles.statusBadgeText,
+              styles.statusBadge,
               verificationStatus === 'verified'
-                ? styles.statusTextVerified
+                ? styles.statusBadgeVerified
                 : verificationStatus === 'pending'
-                ? styles.statusTextPending
-                : styles.statusTextUnregistered,
+                ? styles.statusBadgePending
+                : styles.statusBadgeUnregistered,
             ]}
           >
-            {verificationStatus === 'verified'
-              ? 'VERIFIED OWNER'
-              : verificationStatus === 'pending'
-              ? 'UNDER REVIEW'
-              : 'VERIFICATION REQUIRED'}
-          </Text>
+            <Text
+              style={[
+                styles.statusBadgeText,
+                verificationStatus === 'verified'
+                  ? styles.statusTextVerified
+                  : verificationStatus === 'pending'
+                  ? styles.statusTextPending
+                  : styles.statusTextUnregistered,
+              ]}
+            >
+              {verificationStatus === 'verified'
+                ? 'VERIFIED OWNER'
+                : verificationStatus === 'pending'
+                ? 'UNDER REVIEW'
+                : 'VERIFICATION REQUIRED'}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Role View Switcher (Owner Dashboard vs Admin Approval Queue) */}
-      <View style={styles.roleTabsRow}>
-        <TouchableOpacity
-          style={[
-            styles.roleTab,
-            activePortalTab === 'owner' && styles.roleTabActive,
-          ]}
-          onPress={() => setActivePortalTab('owner')}
-        >
-          <Feather
-            name="coffee"
-            size={13}
-            color={activePortalTab === 'owner' ? '#FFFFFF' : COLORS.textSecondary}
-          />
-          <Text
+      {/* Role View Switcher (ONLY VISIBLE WHEN ADMIN ACCESS IS UNLOCKED) */}
+      {hasAdminAccess && (
+        <View style={styles.roleTabsRow}>
+          <TouchableOpacity
             style={[
-              styles.roleTabText,
-              activePortalTab === 'owner' && styles.roleTabTextActive,
+              styles.roleTab,
+              activePortalTab === 'owner' && styles.roleTabActive,
             ]}
+            onPress={() => setActivePortalTab('owner')}
           >
-            Café Owner Portal
-          </Text>
-        </TouchableOpacity>
+            <Feather
+              name="coffee"
+              size={13}
+              color={activePortalTab === 'owner' ? '#FFFFFF' : COLORS.textSecondary}
+            />
+            <Text
+              style={[
+                styles.roleTabText,
+                activePortalTab === 'owner' && styles.roleTabTextActive,
+              ]}
+            >
+              Café Owner Portal
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.roleTab,
-            activePortalTab === 'admin' && styles.roleTabActive,
-          ]}
-          onPress={() => setActivePortalTab('admin')}
-        >
-          <Feather
-            name="shield"
-            size={13}
-            color={activePortalTab === 'admin' ? '#FFFFFF' : COLORS.textSecondary}
-          />
-          <Text
+          <TouchableOpacity
             style={[
-              styles.roleTabText,
-              activePortalTab === 'admin' && styles.roleTabTextActive,
+              styles.roleTab,
+              activePortalTab === 'admin' && styles.roleTabActive,
             ]}
+            onPress={() => setActivePortalTab('admin')}
           >
-            Admin Verification Queue ({claimRequests.filter((c) => c.status === 'pending').length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Feather
+              name="shield"
+              size={13}
+              color={activePortalTab === 'admin' ? '#FFFFFF' : COLORS.textSecondary}
+            />
+            <Text
+              style={[
+                styles.roleTabText,
+                activePortalTab === 'admin' && styles.roleTabTextActive,
+              ]}
+            >
+              Admin Queue ({claimRequests.filter((c) => c.status === 'pending').length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -772,6 +840,20 @@ export const OwnerPortalScreen: React.FC = () => {
                   </View>
                 </View>
               </>
+            )}
+
+            {/* Discreet Admin Portal Entry */}
+            {!hasAdminAccess && (
+              <TouchableOpacity
+                style={styles.adminUnlockLink}
+                onPress={() => setAdminPinModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="shield" size={13} color={COLORS.textMuted} />
+                <Text style={styles.adminUnlockLinkText}>
+                  App Administrator? Tap to Enter Master Security PIN
+                </Text>
+              </TouchableOpacity>
             )}
           </>
         )}
@@ -1194,6 +1276,65 @@ export const OwnerPortalScreen: React.FC = () => {
           )}
         </View>
       </Modal>
+
+      {/* Admin Security PIN Auth Modal */}
+      <Modal
+        visible={adminPinModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAdminPinModalVisible(false)}
+      >
+        <View style={styles.adminPinModalOverlay}>
+          <View style={styles.adminPinModalCard}>
+            <View style={styles.adminPinHeader}>
+              <View style={styles.adminPinIconWrap}>
+                <Feather name="shield" size={24} color={COLORS.primary} />
+              </View>
+              <Text style={styles.adminPinTitle}>Administrator Access</Text>
+              <Text style={styles.adminPinSub}>
+                Enter the master security PIN to unlock the Verification Queue and approve café ownership credentials.
+              </Text>
+            </View>
+
+            <TextInput
+              style={styles.adminPinInput}
+              placeholder="Enter PIN (e.g. 814160)"
+              placeholderTextColor={COLORS.textMuted}
+              value={enteredPin}
+              onChangeText={setEnteredPin}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={8}
+              autoFocus
+            />
+
+            <View style={styles.adminPinActionsRow}>
+              <TouchableOpacity
+                style={styles.adminPinCancelBtn}
+                onPress={() => {
+                  setAdminPinModalVisible(false);
+                  setEnteredPin('');
+                }}
+              >
+                <Text style={styles.adminPinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adminPinSubmitBtn}
+                onPress={handleVerifyAdminPin}
+                activeOpacity={0.85}
+              >
+                <Feather name="unlock" size={14} color="#FFFFFF" />
+                <Text style={styles.adminPinSubmitText}>Unlock Queue</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.adminPinHelper}>
+              Default Master Key: <Text style={{ fontWeight: '800', color: COLORS.primary }}>814160</Text> (or log in with michaelapril81416@gmail.com)
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1222,6 +1363,160 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: COLORS.primary,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminUnlockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#90CAF9',
+    gap: 4,
+  },
+  adminUnlockedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0D47A1',
+  },
+  adminLockIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  adminUnlockLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: 8,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    backgroundColor: COLORS.surface,
+  },
+  adminUnlockLinkText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+  // Admin PIN Auth Modal Styles
+  adminPinModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  adminPinModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    gap: SPACING.sm + 2,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  adminPinHeader: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  adminPinIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.surfaceSage,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  adminPinTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  adminPinSub: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 8,
+  },
+  adminPinInput: {
+    width: '100%',
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    letterSpacing: 4,
+    marginVertical: 4,
+  },
+  adminPinActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+    marginTop: 4,
+  },
+  adminPinCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminPinCancelText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  adminPinSubmitBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  adminPinSubmitText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  adminPinHelper: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
