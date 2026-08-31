@@ -87,37 +87,14 @@ const PLANS: Plan[] = [
   },
 ];
 
-const ADMIN_EMAILS = [
-  'michaelapril81416@gmail.com',
-  'admin@coffeefinder.ph',
-  'kashumadesu@gmail.com',
-];
-const ADMIN_MASTER_PIN = '102403';
-
 export const OwnerPortalScreen: React.FC = () => {
   const shops = useStore((s) => s.shops);
   const updateShopLiveStatus = useStore((s) => s.updateShopLiveStatus);
   const claimRequests = useStore((s) => s.claimRequests);
   const submitClaim = useStore((s) => s.submitClaim);
-  const approveClaim = useStore((s) => s.approveClaim);
-  const rejectClaim = useStore((s) => s.rejectClaim);
   const isShopClaimed = useStore((s) => s.isShopClaimed);
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
   const liveHeartbeatEvents = useStore((s) => s.liveHeartbeatEvents);
-  const currentUser = useStore((s) => s.currentUser);
-
-  // Admin Access Control (Whitelisted Admin Email or Master PIN)
-  const isWhitelisted = !!(
-    currentUser?.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase())
-  );
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
-  const [adminPinModalVisible, setAdminPinModalVisible] = useState(false);
-  const [enteredPin, setEnteredPin] = useState('');
-
-  const hasAdminAccess = isWhitelisted || isAdminUnlocked;
-
-  // Portal View Mode: Owner vs Admin/Support
-  const [activePortalTab, setActivePortalTab] = useState<'owner' | 'admin'>('owner');
 
   // Verification State (Defaults to 'unregistered' so portal is locked by default)
   const [verificationStatus, setVerificationStatus] =
@@ -139,7 +116,6 @@ export const OwnerPortalScreen: React.FC = () => {
     useState<OwnerClaimRequest['permitType']>('DTI Registration');
   const [permitLocalPhotoUri, setPermitLocalPhotoUri] = useState<string | null>(null);
   const [isUploadingPermit, setIsUploadingPermit] = useState(false);
-  const [previewModalImageUri, setPreviewModalImageUri] = useState<string | null>(null);
 
   // Verified Owner Dashboard State
   const [currentPlan, setCurrentPlan] = useState<PlanTier>('free');
@@ -244,19 +220,6 @@ export const OwnerPortalScreen: React.FC = () => {
     );
   };
 
-  const handleAdminApprove = (claimId: string, shopName: string) => {
-    approveClaim(claimId);
-    setVerificationStatus('verified');
-    hapticSuccess();
-    Alert.alert('Claim Approved', `Ownership credentials for "${shopName}" have been verified. Verified Owner dashboard is now unlocked.`);
-  };
-
-  const handleAdminReject = (claimId: string, shopName: string) => {
-    rejectClaim(claimId, 'Permit documentation did not match local city registry records.');
-    hapticWarning();
-    Alert.alert('Claim Rejected', `Rejected claim for "${shopName}". Owner notified via email.`);
-  };
-
   const handleSaveStatus = () => {
     if (activeShop) {
       updateShopLiveStatus(activeShop.id, seatingStatus, wifiSpeed);
@@ -324,27 +287,6 @@ export const OwnerPortalScreen: React.FC = () => {
     }
   };
 
-  const handleVerifyAdminPin = () => {
-    if (enteredPin.trim() === ADMIN_MASTER_PIN) {
-      hapticSuccess();
-      setIsAdminUnlocked(true);
-      setActivePortalTab('admin');
-      setAdminPinModalVisible(false);
-      setEnteredPin('');
-      Alert.alert('Admin Access Granted', 'Verification Queue is now unlocked.');
-    } else {
-      hapticWarning();
-      Alert.alert('Access Denied', 'The security PIN you entered is incorrect.');
-    }
-  };
-
-  const handleLockAdminMode = () => {
-    hapticMedium();
-    setIsAdminUnlocked(false);
-    setActivePortalTab('owner');
-    Alert.alert('Admin Locked', 'Admin mode has been securely locked.');
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Spacious Minimalist Top Header */}
@@ -352,115 +294,35 @@ export const OwnerPortalScreen: React.FC = () => {
         <View style={styles.headerLeftCol}>
           <Text style={styles.headerTitle}>Owner Portal</Text>
           <Text style={styles.headerSubtitle}>
-            {hasAdminAccess
-              ? 'Administrator Moderation Center'
-              : verificationStatus === 'verified'
-              ? 'Verified Café Management'
-              : 'Business Listing & Verification'}
+            {verificationStatus === 'verified'
+              ? 'Verified Café Management & Live Operations'
+              : 'Claim Your Listing & Verified Badge'}
           </Text>
         </View>
-
-        {/* Right Header: Clean Shield Action */}
-        <View style={styles.headerRightActions}>
-          {hasAdminAccess ? (
-            <TouchableOpacity
-              style={styles.adminActivePill}
-              onPress={handleLockAdminMode}
-              activeOpacity={0.8}
-            >
-              <Feather name="shield" size={12} color="#1B5E20" />
-              <Text style={styles.adminActivePillText}>Admin Active</Text>
-              <Feather name="x" size={11} color="#1B5E20" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.adminLockIconBtn}
-              onPress={() => setAdminPinModalVisible(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Feather name="shield" size={16} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
-
-      {/* Role View Switcher (ONLY VISIBLE WHEN ADMIN ACCESS IS UNLOCKED) */}
-      {hasAdminAccess && (
-        <View style={styles.roleTabsRow}>
-          <TouchableOpacity
-            style={[
-              styles.roleTab,
-              activePortalTab === 'owner' && styles.roleTabActive,
-            ]}
-            onPress={() => setActivePortalTab('owner')}
-          >
-            <Feather
-              name="coffee"
-              size={13}
-              color={activePortalTab === 'owner' ? '#FFFFFF' : COLORS.textSecondary}
-            />
-            <Text
-              style={[
-                styles.roleTabText,
-                activePortalTab === 'owner' && styles.roleTabTextActive,
-              ]}
-            >
-              Café Owner Portal
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.roleTab,
-              activePortalTab === 'admin' && styles.roleTabActive,
-            ]}
-            onPress={() => setActivePortalTab('admin')}
-          >
-            <Feather
-              name="shield"
-              size={13}
-              color={activePortalTab === 'admin' ? '#FFFFFF' : COLORS.textSecondary}
-            />
-            <Text
-              style={[
-                styles.roleTabText,
-                activePortalTab === 'admin' && styles.roleTabTextActive,
-              ]}
-            >
-              Admin Queue ({claimRequests.filter((c) => c.status === 'pending').length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ============================================================
-            TAB 1: CAFÉ OWNER VIEW
-           ============================================================ */}
-        {activePortalTab === 'owner' && (
-          <>
-            {/* STATE A: UNREGISTERED / VERIFICATION REQUIRED */}
-            {verificationStatus === 'unregistered' && (
-              <View style={styles.unverifiedContainer}>
-                <View style={styles.lockHeroCard}>
-                  {/* Status Pill Inside Card Header */}
-                  <View style={styles.heroStatusBadgeRow}>
-                    <View style={styles.unregisteredStatusPill}>
-                      <Text style={styles.unregisteredStatusText}>VERIFICATION REQUIRED</Text>
-                    </View>
-                  </View>
+        {/* STATE A: UNREGISTERED / VERIFICATION REQUIRED */}
+        {verificationStatus === 'unregistered' && (
+          <View style={styles.unverifiedContainer}>
+            <View style={styles.lockHeroCard}>
+              {/* Status Pill Inside Card Header */}
+              <View style={styles.heroStatusBadgeRow}>
+                <View style={styles.unregisteredStatusPill}>
+                  <Text style={styles.unregisteredStatusText}>VERIFICATION REQUIRED</Text>
+                </View>
+              </View>
 
-                  <View style={styles.lockIconCircle}>
-                    <Feather name="shield" size={28} color={COLORS.primary} />
-                  </View>
-                  <Text style={styles.lockTitle}>Claim & Verify Your Café</Text>
-                  <Text style={styles.lockSubtitle}>
-                    To protect café listings, ownership must be validated by admin or customer service before live seating broadcasts and SaaS tools can be unlocked.
-                  </Text>
+              <View style={styles.lockIconCircle}>
+                <Feather name="shield" size={28} color={COLORS.primary} />
+              </View>
+              <Text style={styles.lockTitle}>Claim & Verify Your Café</Text>
+              <Text style={styles.lockSubtitle}>
+                To protect café listings, ownership must be validated by admin or customer service before live seating broadcasts and SaaS tools can be unlocked.
+              </Text>
 
                   <View style={styles.securityCheckpoints}>
                     <View style={styles.checkpointRow}>
@@ -822,140 +684,6 @@ export const OwnerPortalScreen: React.FC = () => {
                 </View>
               </>
             )}
-
-            {/* Discreet Admin Portal Entry */}
-            {!hasAdminAccess && (
-              <TouchableOpacity
-                style={styles.adminUnlockLink}
-                onPress={() => setAdminPinModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Feather name="shield" size={13} color={COLORS.textMuted} />
-                <Text style={styles.adminUnlockLinkText}>
-                  App Administrator Access
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-
-        {/* ============================================================
-            TAB 2: ADMIN & CUSTOMER SERVICE QUEUE
-           ============================================================ */}
-        {activePortalTab === 'admin' && (
-          <View style={styles.adminContainer}>
-            <View style={styles.adminNoticeBox}>
-              <Feather name="shield" size={16} color={COLORS.primary} />
-              <View style={styles.adminNoticeTextCol}>
-                <Text style={styles.adminNoticeTitle}>Administrative Claim Gateway</Text>
-                <Text style={styles.adminNoticeSub}>
-                  Customer Service portal to validate DTI / SEC permits and approve verified ownership.
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.adminQueueHeading}>
-              Submitted Applications ({claimRequests.length})
-            </Text>
-
-            {claimRequests.length === 0 ? (
-              <View style={styles.emptyAdminBox}>
-                <Text style={styles.emptyAdminText}>No claim applications submitted yet.</Text>
-              </View>
-            ) : (
-              claimRequests.map((claim) => {
-                const isPending = claim.status === 'pending';
-                const isApproved = claim.status === 'verified';
-
-                return (
-                  <View key={claim.id} style={styles.adminClaimCard}>
-                    <View style={styles.adminClaimHeader}>
-                      <View>
-                        <Text style={styles.adminShopName}>{claim.shopName}</Text>
-                        <Text style={styles.adminSubmittedAt}>Submitted: {claim.submittedAt}</Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.claimStatusTag,
-                          isApproved ? styles.claimTagApproved : isPending ? styles.claimTagPending : styles.claimTagRejected,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.claimStatusTagText,
-                            isApproved ? styles.claimTextApproved : isPending ? styles.claimTextPending : styles.claimTextRejected,
-                          ]}
-                        >
-                          {claim.status.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Applicant & Business Credentials */}
-                    <View style={styles.credentialGrid}>
-                      <View style={styles.credItem}>
-                        <Text style={styles.credLabel}>Applicant</Text>
-                        <Text style={styles.credValue}>{claim.ownerFullName}</Text>
-                      </View>
-                      <View style={styles.credItem}>
-                        <Text style={styles.credLabel}>Contact Email</Text>
-                        <Text style={styles.credValue}>{claim.businessEmail}</Text>
-                      </View>
-                      <View style={styles.credItem}>
-                        <Text style={styles.credLabel}>Phone Number</Text>
-                        <Text style={styles.credValue}>{claim.phoneNumber}</Text>
-                      </View>
-                      <View style={styles.credItem}>
-                        <Text style={styles.credLabel}>{claim.permitType}</Text>
-                        <Text style={styles.credValue}>{claim.dtiOrSecNumber}</Text>
-                      </View>
-                    </View>
-
-                    {/* Attached Permit Document Photo Preview */}
-                    {claim.permitPhotoUri && (
-                      <TouchableOpacity
-                        style={styles.adminPermitPreviewRow}
-                        onPress={() => setPreviewModalImageUri(claim.permitPhotoUri!)}
-                        activeOpacity={0.8}
-                      >
-                        <Image
-                          source={{ uri: claim.permitPhotoUri }}
-                          style={styles.adminPermitThumbnail}
-                        />
-                        <View style={styles.adminPermitTextCol}>
-                          <Text style={styles.adminPermitTitle}>Attached Business Permit</Text>
-                          <Text style={styles.adminPermitSub}>Tap to inspect full resolution document ›</Text>
-                        </View>
-                        <Feather name="maximize-2" size={15} color={COLORS.primary} />
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Action Row for Admin */}
-                    {isPending && (
-                      <View style={styles.adminActionRow}>
-                        <TouchableOpacity
-                          style={styles.adminRejectBtn}
-                          onPress={() => handleAdminReject(claim.id, claim.shopName)}
-                        >
-                          <Feather name="x" size={13} color={COLORS.danger} />
-                          <Text style={styles.adminRejectText}>Reject</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.adminApproveBtn}
-                          onPress={() => handleAdminApprove(claim.id, claim.shopName)}
-                        >
-                          <Feather name="check" size={13} color="#FFFFFF" />
-                          <Text style={styles.adminApproveText}>Approve & Grant Ownership</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                );
-              })
-            )}
-          </View>
-        )}
       </ScrollView>
 
       {/* Verification & Claim Modal Wizard */}
@@ -1230,89 +958,6 @@ export const OwnerPortalScreen: React.FC = () => {
                 Connecting to PayMongo gateway…
               </Text>
             )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Full Document Inspector Modal */}
-      <Modal
-        visible={!!previewModalImageUri}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewModalImageUri(null)}
-      >
-        <View style={styles.imageViewerOverlay}>
-          <TouchableOpacity
-            style={styles.imageViewerCloseBtn}
-            onPress={() => setPreviewModalImageUri(null)}
-          >
-            <Feather name="x" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          {previewModalImageUri && (
-            <Image
-              source={{ uri: previewModalImageUri }}
-              style={styles.fullInspectionImage}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      </Modal>
-
-      {/* Admin Security PIN Auth Modal */}
-      <Modal
-        visible={adminPinModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAdminPinModalVisible(false)}
-      >
-        <View style={styles.adminPinModalOverlay}>
-          <View style={styles.adminPinModalCard}>
-            <View style={styles.adminPinHeader}>
-              <View style={styles.adminPinIconWrap}>
-                <Feather name="shield" size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.adminPinTitle}>Administrator Access</Text>
-              <Text style={styles.adminPinSub}>
-                Enter the master security PIN to unlock the Verification Queue and approve café ownership credentials.
-              </Text>
-            </View>
-
-            <TextInput
-              style={styles.adminPinInput}
-              placeholder="••••••"
-              placeholderTextColor={COLORS.textMuted}
-              value={enteredPin}
-              onChangeText={setEnteredPin}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={8}
-              autoFocus
-            />
-
-            <View style={styles.adminPinActionsRow}>
-              <TouchableOpacity
-                style={styles.adminPinCancelBtn}
-                onPress={() => {
-                  setAdminPinModalVisible(false);
-                  setEnteredPin('');
-                }}
-              >
-                <Text style={styles.adminPinCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.adminPinSubmitBtn}
-                onPress={handleVerifyAdminPin}
-                activeOpacity={0.85}
-              >
-                <Feather name="unlock" size={14} color="#FFFFFF" />
-                <Text style={styles.adminPinSubmitText}>Unlock Queue</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.adminPinHelper}>
-              Confidential • Authorized administrator credentials only
-            </Text>
           </View>
         </View>
       </Modal>

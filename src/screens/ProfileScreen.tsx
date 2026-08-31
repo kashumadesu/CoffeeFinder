@@ -1,7 +1,3 @@
-// ============================================================
-// ProfileScreen — Coffee Passport, Badges & Authentication
-// ============================================================
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -26,7 +23,21 @@ import {
 } from '@services/firebase';
 import { promptGoogleSignIn } from '@services/googleAuth';
 import { promptFacebookSignIn } from '@services/facebookAuth';
-import { hapticSuccess } from '@utils/haptics';
+import { hapticSuccess, hapticMedium, hapticWarning } from '@utils/haptics';
+import type {
+  CoffeeShop,
+  OwnerClaimRequest,
+  OutletRating,
+  LiveSeatingStatus,
+  BeanOrigin,
+} from '@types';
+
+const ADMIN_EMAILS = [
+  'michaelapril81416@gmail.com',
+  'admin@coffeefinder.ph',
+  'kashumadesu@gmail.com',
+];
+const ADMIN_MASTER_PIN = '102403';
 
 interface PassportStamp {
   id: string;
@@ -40,6 +51,44 @@ export const ProfileScreen: React.FC = () => {
   const favorites = useStore((s) => s.favorites);
   const currentUser = useStore((s) => s.currentUser);
   const setCurrentUser = useStore((s) => s.setCurrentUser);
+
+  // Shop & Claims Global Store Hooks
+  const shops = useStore((s) => s.shops);
+  const claimRequests = useStore((s) => s.claimRequests);
+  const approveClaim = useStore((s) => s.approveClaim);
+  const rejectClaim = useStore((s) => s.rejectClaim);
+  const adminUpdateShop = useStore((s) => s.adminUpdateShop);
+  const adminDeleteShop = useStore((s) => s.adminDeleteShop);
+  const adminToggleShopVerified = useStore((s) => s.adminToggleShopVerified);
+  const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
+
+  // Administrator & Moderation Console State
+  const isWhitelisted = !!(
+    currentUser?.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase())
+  );
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [adminPinModalVisible, setAdminPinModalVisible] = useState(false);
+  const [enteredPin, setEnteredPin] = useState('');
+  const hasAdminAccess = isWhitelisted || isAdminUnlocked;
+
+  const [activeAdminTab, setActiveAdminTab] = useState<'claims' | 'cafes'>('claims');
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminFilterCat, setAdminFilterCat] = useState<'all' | 'verified' | 'plugs' | 'origin'>('all');
+
+  // Edit Shop Modal State
+  const [editShopModalVisible, setEditShopModalVisible] = useState(false);
+  const [editingShop, setEditingShop] = useState<CoffeeShop | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editVicinity, setEditVicinity] = useState('');
+  const [editOutlets, setEditOutlets] = useState<OutletRating>('plentiful');
+  const [editSeating, setEditSeating] = useState<LiveSeatingStatus>('available');
+  const [editWifiSpeed, setEditWifiSpeed] = useState('');
+  const [editBeanOrigin, setEditBeanOrigin] = useState<BeanOrigin | undefined>(undefined);
+  const [editGcash, setEditGcash] = useState(true);
+
+  // Document Inspection Modal State
+  const [previewDocUri, setPreviewDocUri] = useState<string | null>(null);
 
   // Authentication State (Firebase Spark Auth)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -199,6 +248,112 @@ export const ProfileScreen: React.FC = () => {
       },
     ]);
   };
+
+  const handleVerifyAdminPin = () => {
+    if (enteredPin.trim() === ADMIN_MASTER_PIN) {
+      hapticSuccess();
+      setIsAdminUnlocked(true);
+      setAdminPinModalVisible(false);
+      setEnteredPin('');
+      Alert.alert('Admin Access Granted', 'Moderation & Verification Console is now unlocked.');
+    } else {
+      hapticWarning();
+      Alert.alert('Access Denied', 'The security PIN you entered is incorrect.');
+    }
+  };
+
+  const handleLockAdmin = () => {
+    hapticMedium();
+    setIsAdminUnlocked(false);
+    Alert.alert('Admin Locked', 'Moderation Console has been securely locked.');
+  };
+
+  const handleOpenEditShop = (shop: CoffeeShop) => {
+    setEditingShop(shop);
+    setEditName(shop.name);
+    setEditCity(shop.city || 'Metro Manila');
+    setEditVicinity(shop.vicinity || '');
+    setEditOutlets(shop.outletRating || 'plentiful');
+    setEditSeating(shop.seatingStatus || 'available');
+    setEditWifiSpeed(shop.wifiSpeed || 'Fast (250 Mbps+ verified)');
+    setEditBeanOrigin(shop.beanOrigins?.[0]);
+    setEditGcash(shop.acceptsGcash !== false);
+    setEditShopModalVisible(true);
+  };
+
+  const handleSaveShopEdit = () => {
+    if (!editingShop) return;
+    if (!editName.trim()) {
+      Alert.alert('Missing Name', 'Please enter a valid café name.');
+      return;
+    }
+    adminUpdateShop(editingShop.id, {
+      name: editName.trim(),
+      city: editCity.trim(),
+      vicinity: editVicinity.trim(),
+      outletRating: editOutlets,
+      seatingStatus: editSeating,
+      wifiSpeed: editWifiSpeed.trim(),
+      beanOrigins: editBeanOrigin ? [editBeanOrigin] : [],
+      acceptsGcash: editGcash,
+    });
+    hapticSuccess();
+    setEditShopModalVisible(false);
+    setEditingShop(null);
+    Alert.alert('Changes Saved', `Updated metadata for "${editName}".`);
+  };
+
+  const handleDeleteShopConfirm = (shop: CoffeeShop) => {
+    Alert.alert(
+      'Delete & Delist Café?',
+      `Are you sure you want to permanently delete "${shop.name}" from KapeRoute? This will delist the shop across all user feeds.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Café',
+          style: 'destructive',
+          onPress: () => {
+            adminDeleteShop(shop.id);
+            hapticWarning();
+            Alert.alert('Deleted', `"${shop.name}" has been removed from KapeRoute.`);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleToggleVerifiedBadge = (shop: CoffeeShop) => {
+    adminToggleShopVerified(shop.id);
+    const isNowVerified = !verifiedOwnerShopIds.includes(shop.id);
+    hapticSuccess();
+    Alert.alert(
+      isNowVerified ? 'Verified Badge Granted' : 'Verified Badge Revoked',
+      `"${shop.name}" is now marked as ${isNowVerified ? 'Verified (✓)' : 'Unverified'}.`,
+    );
+  };
+
+  const handleApproveClaim = (claimId: string, shopName: string, shopId: string) => {
+    approveClaim(claimId);
+    adminToggleShopVerified(shopId);
+    hapticSuccess();
+    Alert.alert('Claim Approved', `Verified badge granted to "${shopName}". Owner notified.`);
+  };
+
+  const handleRejectClaim = (claimId: string, shopName: string) => {
+    rejectClaim(claimId, 'Permit documentation did not match local government registry records.');
+    hapticWarning();
+    Alert.alert('Claim Rejected', `Rejected application for "${shopName}".`);
+  };
+
+  const filteredShops = shops.filter((s) => {
+    const q = adminSearchQuery.toLowerCase();
+    const matchesSearch = s.name.toLowerCase().includes(q) || (s.city && s.city.toLowerCase().includes(q));
+    if (!matchesSearch) return false;
+    if (adminFilterCat === 'verified') return verifiedOwnerShopIds.includes(s.id) || s.isVerified;
+    if (adminFilterCat === 'plugs') return s.outletRating === 'plentiful';
+    if (adminFilterCat === 'origin') return !!(s.beanOrigins && s.beanOrigins.length > 0);
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -378,6 +533,376 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.gcashDot} />
             <Text style={styles.perkText}>GCash / QRPh Cashless Payments</Text>
           </View>
+        </View>
+
+        {/* ============================================================
+            ADMINISTRATOR & MODERATION CONSOLE (ROLE-BASED & PIN-LOCKED)
+           ============================================================ */}
+        <View style={[styles.card, hasAdminAccess && styles.adminCardActive]}>
+          <View style={styles.adminSectionHeader}>
+            <View style={styles.adminHeaderLeft}>
+              <View style={[styles.adminShieldCircle, hasAdminAccess && styles.adminShieldCircleActive]}>
+                <Feather name="shield" size={18} color={hasAdminAccess ? '#1B5E20' : COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.adminTitleRow}>
+                  <Text style={styles.cardTitle}>Administrator Console</Text>
+                  {hasAdminAccess && (
+                    <View style={styles.adminBadgeActive}>
+                      <Text style={styles.adminBadgeActiveText}>UNLOCKED</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.adminSubtitle}>
+                  {hasAdminAccess
+                    ? 'Verify permits, edit café metadata, fact-check & delist'
+                    : 'Manage listings, inspect DTI permits & verify claims'}
+                </Text>
+              </View>
+            </View>
+
+            {hasAdminAccess ? (
+              <TouchableOpacity
+                style={styles.adminLockPillBtn}
+                onPress={handleLockAdmin}
+                activeOpacity={0.8}
+              >
+                <Feather name="lock" size={12} color="#C0392B" />
+                <Text style={styles.adminLockPillText}>Lock</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.adminUnlockBtn}
+                onPress={() => setAdminPinModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Feather name="key" size={12} color="#FFFFFF" />
+                <Text style={styles.adminUnlockBtnText}>Unlock</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* LOCKED STATE BANNER */}
+          {!hasAdminAccess && (
+            <View style={styles.adminLockedNotice}>
+              <Feather name="lock" size={13} color={COLORS.textMuted} />
+              <Text style={styles.adminLockedNoticeText}>
+                Restricted to authorized system administrators. Tap Unlock to enter Master Passcode.
+              </Text>
+            </View>
+          )}
+
+          {/* UNLOCKED FULL MODERATION DASHBOARD */}
+          {hasAdminAccess && (
+            <View style={styles.adminConsoleBody}>
+              {/* Tab Switcher: Claims vs Cafes */}
+              <View style={styles.adminTabsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.adminTabBtn,
+                    activeAdminTab === 'claims' && styles.adminTabBtnActive,
+                  ]}
+                  onPress={() => setActiveAdminTab('claims')}
+                >
+                  <Feather
+                    name="inbox"
+                    size={13}
+                    color={activeAdminTab === 'claims' ? '#FFFFFF' : COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.adminTabBtnText,
+                      activeAdminTab === 'claims' && styles.adminTabBtnTextActive,
+                    ]}
+                  >
+                    Permit Claims ({claimRequests.filter((c) => c.status === 'pending').length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.adminTabBtn,
+                    activeAdminTab === 'cafes' && styles.adminTabBtnActive,
+                  ]}
+                  onPress={() => setActiveAdminTab('cafes')}
+                >
+                  <Feather
+                    name="coffee"
+                    size={13}
+                    color={activeAdminTab === 'cafes' ? '#FFFFFF' : COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.adminTabBtnText,
+                      activeAdminTab === 'cafes' && styles.adminTabBtnTextActive,
+                    ]}
+                  >
+                    All Coffee Shops ({shops.length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* TAB 1: CLAIMS & PERMIT VERIFICATION QUEUE */}
+              {activeAdminTab === 'claims' && (
+                <View style={styles.adminTabContent}>
+                  {claimRequests.length === 0 ? (
+                    <View style={styles.emptyAdminTab}>
+                      <Feather name="check-circle" size={24} color={COLORS.verified} />
+                      <Text style={styles.emptyAdminTabText}>No pending claim applications.</Text>
+                    </View>
+                  ) : (
+                    claimRequests.map((claim) => {
+                      const isPending = claim.status === 'pending';
+                      const isVerified = claim.status === 'verified';
+
+                      return (
+                        <View key={claim.id} style={styles.adminClaimItem}>
+                          <View style={styles.claimItemHeader}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.claimShopName}>{claim.shopName}</Text>
+                              <Text style={styles.claimApplicantSub}>
+                                By {claim.ownerFullName} • {claim.submittedAt}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.claimStatusBadge,
+                                isVerified
+                                  ? styles.claimStatusVerified
+                                  : isPending
+                                  ? styles.claimStatusPending
+                                  : styles.claimStatusRejected,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.claimStatusBadgeText,
+                                  isVerified
+                                    ? styles.claimTextVerified
+                                    : isPending
+                                    ? styles.claimTextPending
+                                    : styles.claimTextRejected,
+                                ]}
+                              >
+                                {claim.status.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.claimCredsGrid}>
+                            <View style={styles.credRow}>
+                              <Text style={styles.credLabel}>Email:</Text>
+                              <Text style={styles.credValue}>{claim.businessEmail}</Text>
+                            </View>
+                            <View style={styles.credRow}>
+                              <Text style={styles.credLabel}>Phone:</Text>
+                              <Text style={styles.credValue}>{claim.phoneNumber}</Text>
+                            </View>
+                            <View style={styles.credRow}>
+                              <Text style={styles.credLabel}>{claim.permitType}:</Text>
+                              <Text style={[styles.credValue, { fontWeight: '700', color: COLORS.primary }]}>
+                                {claim.dtiOrSecNumber}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Permit Photo Inspection */}
+                          {claim.permitPhotoUri && (
+                            <TouchableOpacity
+                              style={styles.inspectPermitBtn}
+                              onPress={() => setPreviewDocUri(claim.permitPhotoUri!)}
+                              activeOpacity={0.8}
+                            >
+                              <Image source={{ uri: claim.permitPhotoUri }} style={styles.inspectThumbnail} />
+                              <View style={styles.inspectTextCol}>
+                                <Text style={styles.inspectTitle}>Inspect Uploaded Document</Text>
+                                <Text style={styles.inspectSub}>Tap to view full resolution ›</Text>
+                              </View>
+                              <Feather name="maximize-2" size={14} color={COLORS.primary} />
+                            </TouchableOpacity>
+                          )}
+
+                          {/* Action Buttons */}
+                          {isPending && (
+                            <View style={styles.claimActionsRow}>
+                              <TouchableOpacity
+                                style={styles.claimRejectBtn}
+                                onPress={() => handleRejectClaim(claim.id, claim.shopName)}
+                              >
+                                <Feather name="x" size={13} color={COLORS.danger} />
+                                <Text style={styles.claimRejectText}>Reject</Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={styles.claimApproveBtn}
+                                onPress={() => handleApproveClaim(claim.id, claim.shopName, claim.shopId)}
+                              >
+                                <Feather name="check" size={13} color="#FFFFFF" />
+                                <Text style={styles.claimApproveText}>Approve & Verify</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+
+              {/* TAB 2: ALL COFFEE SHOPS & FACT CHECKING */}
+              {activeAdminTab === 'cafes' && (
+                <View style={styles.adminTabContent}>
+                  {/* Search Bar */}
+                  <View style={styles.adminSearchBarWrap}>
+                    <Feather name="search" size={14} color={COLORS.textMuted} />
+                    <TextInput
+                      style={styles.adminSearchInput}
+                      placeholder="Search café by name or city..."
+                      placeholderTextColor={COLORS.textMuted}
+                      value={adminSearchQuery}
+                      onChangeText={setAdminSearchQuery}
+                    />
+                    {adminSearchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setAdminSearchQuery('')}>
+                        <Feather name="x" size={14} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Filter Pills */}
+                  <View style={styles.adminFilterRow}>
+                    {(['all', 'verified', 'plugs', 'origin'] as const).map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.adminFilterPill,
+                          adminFilterCat === cat && styles.adminFilterPillActive,
+                        ]}
+                        onPress={() => setAdminFilterCat(cat)}
+                      >
+                        <Text
+                          style={[
+                            styles.adminFilterPillText,
+                            adminFilterCat === cat && styles.adminFilterPillTextActive,
+                          ]}
+                        >
+                          {cat === 'all'
+                            ? `All (${shops.length})`
+                            : cat === 'verified'
+                            ? 'Verified ✓'
+                            : cat === 'plugs'
+                            ? '⚡ Plugs'
+                            : '🌱 Origins'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Shop List */}
+                  {filteredShops.map((shop) => {
+                    const isVerified = verifiedOwnerShopIds.includes(shop.id) || shop.isVerified;
+
+                    return (
+                      <View key={shop.id} style={styles.adminShopCard}>
+                        <View style={styles.adminShopHeader}>
+                          <View style={styles.adminShopTitleCol}>
+                            <View style={styles.adminShopNameRow}>
+                              <Text style={styles.adminShopName} numberOfLines={1}>
+                                {shop.name}
+                              </Text>
+                              {isVerified && (
+                                <Feather name="check-circle" size={14} color={COLORS.verified} />
+                              )}
+                            </View>
+                            <Text style={styles.adminShopCity}>
+                              {shop.city || 'Metro Manila'} • {shop.vicinity || 'Specialty Spot'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Fact-Checking Badges Preview */}
+                        <View style={styles.factBadgesRow}>
+                          <View style={styles.factBadge}>
+                            <Text style={styles.factBadgeText}>
+                              {shop.outletRating === 'plentiful'
+                                ? '⚡ Plentiful Plugs'
+                                : shop.outletRating === 'wall_only'
+                                ? '⚠️ Wall-Only'
+                                : '⚡ Unknown Outlets'}
+                            </Text>
+                          </View>
+
+                          <View style={styles.factBadge}>
+                            <Text style={styles.factBadgeText}>
+                              🪑 {shop.seatingStatus ? shop.seatingStatus.toUpperCase() : 'AVAILABLE'}
+                            </Text>
+                          </View>
+
+                          {shop.beanOrigins && shop.beanOrigins.length > 0 && (
+                            <View style={styles.factBadge}>
+                              <Text style={styles.factBadgeText}>
+                                {shop.beanOrigins[0] === 'sagada'
+                                  ? '🌱 Sagada'
+                                  : shop.beanOrigins[0] === 'apo'
+                                  ? '🏔️ Mt. Apo'
+                                  : shop.beanOrigins[0] === 'benguet'
+                                  ? '🌿 Benguet'
+                                  : '☕ Barako'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Action Toolbar */}
+                        <View style={styles.shopActionToolbar}>
+                          <TouchableOpacity
+                            style={styles.shopActionEditBtn}
+                            onPress={() => handleOpenEditShop(shop)}
+                            activeOpacity={0.8}
+                          >
+                            <Feather name="edit-2" size={12} color={COLORS.primary} />
+                            <Text style={styles.shopActionEditText}>Edit</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.shopActionVerifyBtn,
+                              isVerified && styles.shopActionRevokeBtn,
+                            ]}
+                            onPress={() => handleToggleVerifiedBadge(shop)}
+                            activeOpacity={0.8}
+                          >
+                            <Feather
+                              name={isVerified ? 'slash' : 'check-circle'}
+                              size={12}
+                              color={isVerified ? '#D35400' : '#1B5E20'}
+                            />
+                            <Text
+                              style={[
+                                styles.shopActionVerifyText,
+                                isVerified && styles.shopActionRevokeText,
+                              ]}
+                            >
+                              {isVerified ? 'Revoke' : 'Verify'}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.shopActionDeleteBtn}
+                            onPress={() => handleDeleteShopConfirm(shop)}
+                            activeOpacity={0.8}
+                          >
+                            <Feather name="trash-2" size={12} color={COLORS.danger} />
+                            <Text style={styles.shopActionDeleteText}>Delist</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Legal & Privacy Section (App Store & DPA Compliance) */}
@@ -619,6 +1144,292 @@ export const ProfileScreen: React.FC = () => {
               )}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* ============================================================
+          ADMIN MODALS (PIN AUTH, SHOP EDIT, DOCUMENT PREVIEW)
+         ============================================================ */}
+
+      {/* 1. Admin Master Passcode Auth Modal */}
+      <Modal
+        visible={adminPinModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAdminPinModalVisible(false)}
+      >
+        <View style={styles.adminPinModalOverlay}>
+          <View style={styles.adminPinModalCard}>
+            <View style={styles.adminPinHeader}>
+              <View style={styles.adminPinIconWrap}>
+                <Feather name="shield" size={24} color={COLORS.primary} />
+              </View>
+              <Text style={styles.adminPinTitle}>Administrator Console</Text>
+              <Text style={styles.adminPinSub}>
+                Enter the master administrator passcode to unlock the full moderation dashboard.
+              </Text>
+            </View>
+
+            <TextInput
+              style={styles.adminPinInput}
+              placeholder="••••••"
+              placeholderTextColor={COLORS.textMuted}
+              value={enteredPin}
+              onChangeText={setEnteredPin}
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={8}
+              autoFocus
+            />
+
+            <View style={styles.adminPinActionsRow}>
+              <TouchableOpacity
+                style={styles.adminPinCancelBtn}
+                onPress={() => {
+                  setAdminPinModalVisible(false);
+                  setEnteredPin('');
+                }}
+              >
+                <Text style={styles.adminPinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adminPinSubmitBtn}
+                onPress={handleVerifyAdminPin}
+                activeOpacity={0.85}
+              >
+                <Feather name="unlock" size={14} color="#FFFFFF" />
+                <Text style={styles.adminPinSubmitText}>Unlock Console</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.adminPinHelper}>
+              Confidential • System Administrator Credentials Only
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 2. Admin Coffee Shop Metadata & Fact-Checking Edit Modal */}
+      <Modal
+        visible={editShopModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditShopModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editShopModalCard}>
+            <View style={styles.editShopHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.editShopTitle}>Edit Coffee Shop Metadata</Text>
+                <Text style={styles.editShopSub}>Fact-checking & community data curation</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditShopModalVisible(false)}>
+                <Feather name="x" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.editModalScroll}>
+              <Text style={styles.modalFieldLabel}>Café Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Café Name"
+              />
+
+              <Text style={styles.modalFieldLabel}>City / Hub</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editCity}
+                onChangeText={setEditCity}
+                placeholder="e.g. Quezon City, Metro Manila"
+              />
+
+              <Text style={styles.modalFieldLabel}>Address / Vicinity</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editVicinity}
+                onChangeText={setEditVicinity}
+                placeholder="Street address or landmark"
+              />
+
+              <Text style={styles.modalFieldLabel}>Wi-Fi Speed & Connectivity</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editWifiSpeed}
+                onChangeText={setEditWifiSpeed}
+                placeholder="e.g. Fast (250 Mbps+ verified)"
+              />
+
+              {/* Power Outlets-per-Table Fact Checking */}
+              <Text style={styles.modalFieldLabel}>Power Outlets Rating</Text>
+              <View style={styles.modalChipRow}>
+                {[
+                  { id: 'plentiful' as OutletRating, label: '⚡ Plentiful Plugs' },
+                  { id: 'wall_only' as OutletRating, label: '⚠️ Wall-Only' },
+                  { id: 'laptop_ban' as OutletRating, label: '🚫 Laptop Ban' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[
+                      styles.modalOptionChip,
+                      editOutlets === opt.id && styles.modalOptionChipActive,
+                    ]}
+                    onPress={() => setEditOutlets(opt.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionChipText,
+                        editOutlets === opt.id && styles.modalOptionChipTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Live Seating Capacity */}
+              <Text style={styles.modalFieldLabel}>Live Seating Status</Text>
+              <View style={styles.modalChipRow}>
+                {[
+                  { id: 'available' as LiveSeatingStatus, label: '🟢 Available' },
+                  { id: 'moderate' as LiveSeatingStatus, label: '🟡 Moderate' },
+                  { id: 'full' as LiveSeatingStatus, label: '🔴 Few Seats' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[
+                      styles.modalOptionChip,
+                      editSeating === opt.id && styles.modalOptionChipActive,
+                    ]}
+                    onPress={() => setEditSeating(opt.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionChipText,
+                        editSeating === opt.id && styles.modalOptionChipTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Philippine Single-Origin Heritage Bean */}
+              <Text style={styles.modalFieldLabel}>Philippine Single-Origin Bean Badge</Text>
+              <View style={styles.modalChipRow}>
+                {[
+                  { id: undefined, label: 'None / Blend' },
+                  { id: 'sagada' as BeanOrigin, label: '🌱 Sagada' },
+                  { id: 'apo' as BeanOrigin, label: '🏔️ Mt. Apo' },
+                  { id: 'benguet' as BeanOrigin, label: '🌿 Benguet' },
+                  { id: 'barako' as BeanOrigin, label: '☕ Barako' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.label}
+                    style={[
+                      styles.modalOptionChip,
+                      editBeanOrigin === opt.id && styles.modalOptionChipActive,
+                    ]}
+                    onPress={() => setEditBeanOrigin(opt.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionChipText,
+                        editBeanOrigin === opt.id && styles.modalOptionChipTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* GCash Acceptance Toggle */}
+              <Text style={styles.modalFieldLabel}>GCash / QRPh Cashless Accepted</Text>
+              <View style={styles.modalChipRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.modalOptionChip,
+                    editGcash && styles.modalOptionChipActive,
+                  ]}
+                  onPress={() => setEditGcash(true)}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionChipText,
+                      editGcash && styles.modalOptionChipTextActive,
+                    ]}
+                  >
+                    🔵 GCash Accepted
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modalOptionChip,
+                    !editGcash && styles.modalOptionChipActive,
+                  ]}
+                  onPress={() => setEditGcash(false)}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionChipText,
+                      !editGcash && styles.modalOptionChipTextActive,
+                    ]}
+                  >
+                    💵 Cash Only
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Modal Actions */}
+              <View style={styles.modalSaveRow}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setEditShopModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalSaveBtn}
+                  onPress={handleSaveShopEdit}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="check" size={14} color="#FFFFFF" />
+                  <Text style={styles.modalSaveBtnText}>Save Changes</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 3. Document / Permit High-Res Inspection Modal */}
+      <Modal
+        visible={!!previewDocUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewDocUri(null)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerCloseBtn}
+            onPress={() => setPreviewDocUri(null)}
+          >
+            <Feather name="x" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          {previewDocUri && (
+            <Image
+              source={{ uri: previewDocUri }}
+              style={styles.fullInspectionImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -1116,5 +1927,678 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: COLORS.textSecondary,
     lineHeight: 17,
+  },
+  // ==========================================
+  // Administrator & Moderation Console Styles
+  // ==========================================
+  adminCardActive: {
+    borderColor: '#A5D6A7',
+    backgroundColor: '#FBFCFB',
+  },
+  adminSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  adminShieldCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceWarm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  adminShieldCircleActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#C8E6C9',
+  },
+  adminTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  adminBadgeActive: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#A5D6A7',
+  },
+  adminBadgeActiveText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#2E7D32',
+    letterSpacing: 0.5,
+  },
+  adminSubtitle: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  adminUnlockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.md,
+  },
+  adminUnlockBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  adminLockPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FDEEE9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#F9CCC2',
+  },
+  adminLockPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C0392B',
+  },
+  adminLockedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.sm,
+  },
+  adminLockedNoticeText: {
+    flex: 1,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 15,
+  },
+  adminConsoleBody: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    gap: 10,
+  },
+  adminTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  adminTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceWarm,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  adminTabBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  adminTabBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  adminTabBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  adminTabContent: {
+    gap: 10,
+  },
+  emptyAdminTab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  emptyAdminTabText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  // Claims Items
+  adminClaimItem: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    gap: 8,
+  },
+  claimItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  claimShopName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  claimApplicantSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  claimStatusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  claimStatusVerified: {
+    backgroundColor: '#E8F5E9',
+  },
+  claimStatusPending: {
+    backgroundColor: '#FFF8E1',
+  },
+  claimStatusRejected: {
+    backgroundColor: '#FFEBEE',
+  },
+  claimStatusBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  claimTextVerified: {
+    color: '#2E7D32',
+  },
+  claimTextPending: {
+    color: '#F57F17',
+  },
+  claimTextRejected: {
+    color: '#C62828',
+  },
+  claimCredsGrid: {
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.sm,
+    padding: 8,
+    gap: 4,
+  },
+  credRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  credLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  credValue: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  inspectPermitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF5EE',
+    padding: 8,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: '#E8DCB8',
+    gap: 8,
+  },
+  inspectThumbnail: {
+    width: 36,
+    height: 36,
+    borderRadius: 4,
+    backgroundColor: '#DDD',
+  },
+  inspectTextCol: {
+    flex: 1,
+  },
+  inspectTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  inspectSub: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+  },
+  claimActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  claimRejectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    borderRadius: RADIUS.sm,
+    backgroundColor: '#FDEEE9',
+    borderWidth: 1,
+    borderColor: '#F9CCC2',
+  },
+  claimRejectText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.danger,
+  },
+  claimApproveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primary,
+  },
+  claimApproveText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // Cafes Management
+  adminSearchBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 10,
+    height: 36,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  adminSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    padding: 0,
+  },
+  adminFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  adminFilterPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surfaceWarm,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  adminFilterPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  adminFilterPillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  adminFilterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  adminShopCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    gap: 6,
+  },
+  adminShopHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  adminShopTitleCol: {
+    flex: 1,
+  },
+  adminShopNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  adminShopName: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    flexShrink: 1,
+  },
+  adminShopCity: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  factBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  factBadge: {
+    backgroundColor: COLORS.surfaceWarm,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+  },
+  factBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  shopActionToolbar: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  shopActionEditBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.surfaceWarm,
+  },
+  shopActionEditText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  shopActionVerifyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    backgroundColor: '#E8F5E9',
+  },
+  shopActionRevokeBtn: {
+    backgroundColor: '#FFF3E0',
+  },
+  shopActionVerifyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B5E20',
+  },
+  shopActionRevokeText: {
+    color: '#E65100',
+  },
+  shopActionDeleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    backgroundColor: '#FDEEE9',
+  },
+  shopActionDeleteText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.danger,
+  },
+  // Admin PIN Auth Modal Styles
+  adminPinModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  adminPinModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    gap: SPACING.sm + 2,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  adminPinHeader: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  adminPinIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.surfaceSage,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  adminPinTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  adminPinSub: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  adminPinInput: {
+    width: '100%',
+    height: 48,
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 8,
+    color: COLORS.textPrimary,
+  },
+  adminPinActionsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: SPACING.sm,
+    marginTop: 4,
+  },
+  adminPinCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceWarm,
+  },
+  adminPinCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  adminPinSubmitBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  adminPinSubmitText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  adminPinHelper: {
+    fontSize: 10.5,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  // Edit Shop Modal Styles
+  editShopModalCard: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    maxHeight: '90%',
+    gap: SPACING.sm,
+  },
+  editShopHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  editShopTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  editShopSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  editModalScroll: {
+    marginTop: 6,
+  },
+  modalFieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  modalInput: {
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  modalChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modalOptionChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.surfaceWarm,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  modalOptionChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  modalOptionChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  modalOptionChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalSaveRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 18,
+    marginBottom: 20,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceWarm,
+  },
+  modalCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  modalSaveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  modalSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // Full Document Image Modal Styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  imageViewerCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullInspectionImage: {
+    width: '100%',
+    height: '80%',
   },
 });

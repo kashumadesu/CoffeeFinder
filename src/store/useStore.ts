@@ -106,6 +106,12 @@ interface AppState {
     wifiSpeed?: string,
   ) => void;
 
+  // ---- admin moderation & shop management ----
+  adminUpdateShop: (shopId: string, updates: Partial<CoffeeShop>) => void;
+  adminDeleteShop: (shopId: string) => void;
+  adminToggleShopVerified: (shopId: string) => void;
+  adminCreateShop: (newShop: CoffeeShop) => void;
+
   // ---- favorites ----
   favorites: CoffeeShop[];
   loadFavorites: () => Promise<void>;
@@ -405,6 +411,46 @@ export const useStore = create<AppState>((set, get) => ({
               wifiSpeed: wifiSpeed ?? state.selectedShop.wifiSpeed,
             }
           : state.selectedShop,
+    }));
+  },
+
+  // ---- admin moderation & shop management ----
+  adminUpdateShop: (shopId, updates) => {
+    set((state) => ({
+      shops: state.shops.map((s) => (s.id === shopId ? { ...s, ...updates } : s)),
+      selectedShop:
+        state.selectedShop?.id === shopId ? { ...state.selectedShop, ...updates } : state.selectedShop,
+    }));
+  },
+
+  adminDeleteShop: (shopId) => {
+    set((state) => ({
+      shops: state.shops.filter((s) => s.id !== shopId),
+      selectedShop: state.selectedShop?.id === shopId ? null : state.selectedShop,
+      favorites: state.favorites.filter((s) => s.id !== shopId),
+      verifiedOwnerShopIds: state.verifiedOwnerShopIds.filter((id) => id !== shopId),
+    }));
+  },
+
+  adminToggleShopVerified: (shopId) => {
+    set((state) => {
+      const isCurrentlyVerified = state.verifiedOwnerShopIds.includes(shopId);
+      const newVerified = isCurrentlyVerified
+        ? state.verifiedOwnerShopIds.filter((id) => id !== shopId)
+        : [...state.verifiedOwnerShopIds, shopId];
+
+      return {
+        verifiedOwnerShopIds: newVerified,
+        shops: state.shops.map((s) =>
+          s.id === shopId ? { ...s, isVerified: !isCurrentlyVerified } : s,
+        ),
+      };
+    });
+  },
+
+  adminCreateShop: (newShop) => {
+    set((state) => ({
+      shops: [newShop, ...state.shops],
     }));
   },
 
