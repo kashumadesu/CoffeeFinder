@@ -2,14 +2,15 @@
 // ReviewsList — Community Reviews & Cupping Feedback Feed
 // ============================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '@constants';
 import type { CommunityReview } from '@types';
 import { useStore } from '@store/useStore';
-import { hapticSelection } from '@utils/haptics';
+import { hapticSelection, hapticLight } from '@utils/haptics';
 import { logReviewHelpfulVote } from '@services/analytics';
+import { ImageLightboxModal } from '@components/ImageLightboxModal';
 
 interface Props {
   reviews: CommunityReview[];
@@ -18,6 +19,7 @@ interface Props {
 
 export const ReviewsList: React.FC<Props> = ({ reviews, onWriteReviewPress }) => {
   const voteReviewHelpful = useStore((s) => s.voteReviewHelpful);
+  const [activePhoto, setActivePhoto] = useState<{ uri: string; title: string } | null>(null);
 
   return (
     <View style={styles.container}>
@@ -110,7 +112,18 @@ export const ReviewsList: React.FC<Props> = ({ reviews, onWriteReviewPress }) =>
 
               {/* Photo */}
               {rev.photoUri && (
-                <Image source={{ uri: rev.photoUri }} style={styles.reviewPhoto} resizeMode="cover" />
+                <TouchableOpacity
+                  onPress={() => {
+                    hapticLight();
+                    setActivePhoto({
+                      uri: rev.photoUri!,
+                      title: `${rev.userName}'s ${rev.brewMethod} Cupping`,
+                    });
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Image source={{ uri: rev.photoUri }} style={styles.reviewPhoto} resizeMode="cover" />
+                </TouchableOpacity>
               )}
 
               {/* Bottom Row: Helpful Vote */}
@@ -143,6 +156,14 @@ export const ReviewsList: React.FC<Props> = ({ reviews, onWriteReviewPress }) =>
           ))}
         </View>
       )}
+
+      {/* Fullscreen Photo Lightbox */}
+      <ImageLightboxModal
+        visible={!!activePhoto}
+        imageUri={activePhoto?.uri ?? null}
+        title={activePhoto?.title}
+        onClose={() => setActivePhoto(null)}
+      />
     </View>
   );
 };

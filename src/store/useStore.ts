@@ -711,9 +711,36 @@ export const useStore = create<AppState>((set, get) => ({
       ...reviewData,
     };
     const updated = [newRev, ...get().reviews];
-    set({ reviews: updated });
+
+    // Dynamically recalculate shop rating & rating count
+    const shopReviews = updated.filter((r) => r.shopId === reviewData.shopId);
+    const avgScore = shopReviews.reduce((sum, r) => sum + r.rating, 0) / shopReviews.length;
+    const roundedRating = Math.round(avgScore * 10) / 10;
+
+    const updatedShops = get().shops.map((s) =>
+      s.id === reviewData.shopId
+        ? {
+            ...s,
+            rating: roundedRating,
+            userRatingsTotal: (s.userRatingsTotal ?? 12) + 1,
+          }
+        : s,
+    );
+
+    const currentSelected = get().selectedShop;
+    const updatedSelected =
+      currentSelected?.id === reviewData.shopId
+        ? {
+            ...currentSelected,
+            rating: roundedRating,
+            userRatingsTotal: (currentSelected.userRatingsTotal ?? 12) + 1,
+          }
+        : currentSelected;
+
+    set({ reviews: updated, shops: updatedShops, selectedShop: updatedSelected });
     try {
       await AsyncStorage.setItem(REVIEWS_KEY, JSON.stringify(updated));
+      await AsyncStorage.setItem(CACHED_SHOPS_KEY, JSON.stringify(updatedShops));
     } catch {}
   },
 

@@ -58,6 +58,8 @@ export const DetailScreen: React.FC = () => {
   // Phase 2 State
   const reviews = useStore((s) => s.reviews);
   const shopReviews = reviews.filter((r) => r.shopId === shop.id);
+  const cart = useStore((s) => s.cart);
+  const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const [composerModalVisible, setComposerModalVisible] = useState(false);
   const [cartModalVisible, setCartModalVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CoffeeEvent | null>(null);
@@ -173,6 +175,33 @@ export const DetailScreen: React.FC = () => {
           {shop.name}
         </Text>
         <View style={styles.topActionsRow}>
+          {totalCartCount > 0 && (
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { position: 'relative' }]}
+              onPress={() => setCartModalVisible(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="shopping-bag" size={19} color={COLORS.primary} />
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  backgroundColor: COLORS.primary,
+                  borderRadius: 9,
+                  minWidth: 16,
+                  height: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                }}
+              >
+                <Text style={{ fontSize: 9.5, fontWeight: '900', color: '#FFFFFF' }}>
+                  {totalCartCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.headerActionBtn}
             onPress={handleShareShop}

@@ -55,6 +55,7 @@ export const MapScreen: React.FC = () => {
   const isOffline = useStore((s) => s.isOffline);
   const mapType = useStore((s) => s.mapType);
   const setMapType = useStore((s) => s.setMapType);
+  const currentRegion = useStore((s) => s.currentRegion);
   const selectedShop = useStore((s) => s.selectedShop);
   const setSelectedShop = useStore((s) => s.setSelectedShop);
   const fetchNearbyShops = useStore((s) => s.fetchNearbyShops);
@@ -73,14 +74,14 @@ export const MapScreen: React.FC = () => {
   useLocation();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  const snapPoints = useMemo(() => ['15%', '42%', '85%'], []);
+  const snapPoints = useMemo(() => ['16%', '45%', '85%'], []);
 
   useEffect(() => {
     fetchNearbyShops();
     loadTastingNotes();
   }, [fetchNearbyShops, loadTastingNotes]);
 
-  // Animate map when user location changes (only if NOT currently navigating)
+  // Animate map when user location or GPS initial changes
   useEffect(() => {
     if (userLocation && mapRef.current && !activeNavigationShop && !selectedShop) {
       mapRef.current.animateToRegion(
@@ -93,6 +94,21 @@ export const MapScreen: React.FC = () => {
       );
     }
   }, [userLocation, activeNavigationShop, selectedShop]);
+
+  // Smooth auto-pan when user switches regional hub (Baguio, Sagada, Cebu, Davao, La Union, etc.)
+  useEffect(() => {
+    if (currentRegion && mapRef.current && !activeNavigationShop) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: currentRegion.latitude,
+          longitude: currentRegion.longitude,
+          latitudeDelta: currentRegion.latitudeDelta ?? DELTA.medium,
+          longitudeDelta: currentRegion.longitudeDelta ?? DELTA.medium,
+        },
+        650,
+      );
+    }
+  }, [currentRegion?.id, activeNavigationShop]);
 
   // Instant route calculation & turn-by-turn generation on navigation start
   useEffect(() => {
