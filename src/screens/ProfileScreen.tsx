@@ -24,7 +24,7 @@ import {
 import { promptGoogleSignIn } from '@services/googleAuth';
 import { promptFacebookSignIn } from '@services/facebookAuth';
 import { hapticSuccess, hapticMedium, hapticWarning, hapticLight } from '@utils/haptics';
-import { QRScannerModal } from '@components/QRScannerModal';
+import { PhotoPassportModal } from '@components/PhotoPassportModal';
 
 const ADMIN_EMAILS = [
   'michaelapril81416@gmail.com',
@@ -58,7 +58,7 @@ export const ProfileScreen: React.FC = () => {
   const visitedShops = useStore((s) => s.visitedShops);
   const getRegionalRanks = useStore((s) => s.getRegionalRanks);
   const getNationalRank = useStore((s) => s.getNationalRank);
-  const [qrScannerVisible, setQrScannerVisible] = useState(false);
+  const [photoPassportVisible, setPhotoPassportVisible] = useState(false);
 
   const nationalRank = getNationalRank();
   const regionalRanks = getRegionalRanks();
@@ -110,26 +110,42 @@ export const ProfileScreen: React.FC = () => {
     return () => unsub();
   }, [setCurrentUser]);
 
-  // Coffee Passport Regional Stamps — dynamically unlocked by saved favorites
+  // 8 Official Philippine Coffee Passport Regional Stamps
   const STAMP_REGIONS = [
-    { id: 'manila', region: 'Metro Manila', island: 'Luzon', keywords: ['manila', 'quezon', 'makati', 'bgc', 'taguig', 'pasig', 'ortigas'] },
-    { id: 'sagada', region: 'Sagada Highlands', island: 'Cordillera', keywords: ['sagada'] },
-    { id: 'benguet', region: 'Baguio & Benguet', island: 'Luzon', keywords: ['baguio', 'benguet', 'la trinidad'] },
-    { id: 'cebu', region: 'Cebu City', island: 'Visayas', keywords: ['cebu'] },
-    { id: 'siargao', region: 'Siargao Island', island: 'Mindanao', keywords: ['siargao', 'surigao'] },
+    { id: 'manila', region: 'Metro Manila', island: 'Luzon', keywords: ['manila', 'quezon', 'makati', 'bgc', 'taguig', 'pasig', 'ortigas', 'san juan'] },
+    { id: 'benguet', region: 'Baguio & Benguet', island: 'Luzon', keywords: ['baguio', 'benguet', 'la trinidad', 'atok'] },
+    { id: 'sagada', region: 'Sagada & Mt. Province', island: 'Highlands', keywords: ['sagada', 'mountain province', 'bontoc'] },
+    { id: 'la-union', region: 'La Union Surf Coast', island: 'Luzon', keywords: ['la union', 'san juan', 'elyu'] },
+    { id: 'antipolo', region: 'Antipolo & Rizal Ridge', island: 'Luzon', keywords: ['antipolo', 'rizal', 'tanay', 'angono'] },
+    { id: 'cebu', region: 'Cebu City & Visayas', island: 'Visayas', keywords: ['cebu', 'mandaue', 'it park'] },
+    { id: 'iloilo', region: 'Iloilo City Heritage', island: 'Visayas', keywords: ['iloilo', 'jaro', 'mandurriao'] },
+    { id: 'davao', region: 'Davao & Mt. Apo', island: 'Mindanao', keywords: ['davao', 'apo', 'matina', 'lanang'] },
   ];
 
   const stamps: PassportStamp[] = STAMP_REGIONS.map((r) => {
-    const matching = favorites.filter((f) => {
+    const matchingFavorites = favorites.filter((f) => {
       const haystack = `${f.name} ${f.vicinity ?? ''} ${f.city ?? ''}`.toLowerCase();
       return r.keywords.some((kw) => haystack.includes(kw));
     });
+
+    const matchingVisited = visitedShops.filter((v) => {
+      const haystack = `${v.shopName} ${v.city ?? ''} ${v.regionId ?? ''}`.toLowerCase();
+      return r.keywords.some((kw) => haystack.includes(kw)) || v.regionId === r.id;
+    });
+
+    const matchingCheckIns = passportCheckIns.filter((c) => {
+      const haystack = `${c.shopName} ${c.region}`.toLowerCase();
+      return r.keywords.some((kw) => haystack.includes(kw));
+    });
+
+    const totalLogged = Math.max(matchingVisited.length, matchingCheckIns.length, matchingFavorites.length);
+
     return {
       id: r.id,
       region: r.region,
       island: r.island,
-      unlocked: matching.length > 0,
-      cafesCount: matching.length,
+      unlocked: totalLogged > 0,
+      cafesCount: totalLogged,
     };
   });
 
@@ -592,26 +608,26 @@ export const ProfileScreen: React.FC = () => {
                 alignItems: 'center',
                 gap: 5,
                 backgroundColor: '#E8F5E9',
-                paddingHorizontal: 9,
-                paddingVertical: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: '#C8E6C9',
               }}
               onPress={() => {
                 hapticLight();
-                setQrScannerVisible(true);
+                setPhotoPassportVisible(true);
               }}
               activeOpacity={0.8}
             >
-              <Feather name="maximize" size={12} color="#1B5E20" />
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1B5E20' }}>
-                Scan Counter QR
+              <Feather name="camera" size={13} color="#1B5E20" />
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#1B5E20' }}>
+                📸 Log Cup Photo
               </Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.passportDesc}>
-            Earn digital stamps by scanning the counter QR at partner specialty cafés:
+            Earn digital stamps and unlock regional badges by taking a photo of your cup when visiting specialty cafés:
           </Text>
 
           <View style={styles.stampsGrid}>
@@ -1066,12 +1082,6 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Countertop QR Passport Scanner Modal */}
-      <QRScannerModal
-        visible={qrScannerVisible}
-        onClose={() => setQrScannerVisible(false)}
-      />
-
       {/* Social Login / Firebase Auth Modal */}
       <Modal
         visible={authModalVisible}
@@ -1362,6 +1372,12 @@ export const ProfileScreen: React.FC = () => {
           )}
         </View>
       </Modal>
+
+      {/* Photo-Proof Coffee Passport Camera Modal */}
+      <PhotoPassportModal
+        visible={photoPassportVisible}
+        onClose={() => setPhotoPassportVisible(false)}
+      />
     </SafeAreaView>
   );
 };

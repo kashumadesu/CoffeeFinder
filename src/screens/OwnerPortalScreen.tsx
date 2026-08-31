@@ -22,8 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 import { uploadPermitPhoto } from '@services/firebase';
-import { hapticSuccess, hapticMedium, hapticLight } from '@utils/haptics';
-import { CounterQRPopupModal } from '@components/CounterQRPopupModal';
+import { hapticSuccess, hapticMedium } from '@utils/haptics';
 import type {
   LiveSeatingStatus,
   OwnerVerificationStatus,
@@ -117,7 +116,6 @@ export const OwnerPortalScreen: React.FC = () => {
   const [seatingStatus, setSeatingStatus] = useState<LiveSeatingStatus>('moderate');
   const [wifiSpeed, setWifiSpeed] = useState('Fast (250 Mbps+ verified)');
   const [pushCampaignText, setPushCampaignText] = useState('');
-  const [counterQRVisible, setCounterQRVisible] = useState(false);
 
   // PayMongo Checkout Modal
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
@@ -565,35 +563,6 @@ export const OwnerPortalScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
 
-                {/* Countertop QR Code Standee for POS Cashier */}
-                <View style={styles.card}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View style={styles.sectionHeaderLeft}>
-                      <Feather name="award" size={16} color="#1B5E20" />
-                      <Text style={styles.sectionTitle}>Countertop Passport QR Standee</Text>
-                    </View>
-                    <View style={[styles.freeBadge, { backgroundColor: '#E8F5E9' }]}>
-                      <Text style={[styles.freeBadgeText, { color: '#1B5E20' }]}>Included</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.helperText}>
-                    Display your official KapeRoute QR code at your coffee counter. Customers scan when ordering to log their Coffee Passport stamp.
-                  </Text>
-
-                  <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: '#1B5E20', marginTop: SPACING.xs }]}
-                    onPress={() => {
-                      hapticLight();
-                      setCounterQRVisible(true);
-                    }}
-                    activeOpacity={0.88}
-                  >
-                    <Feather name="maximize" size={15} color="#FFFFFF" />
-                    <Text style={styles.saveBtnText}>View & Print Standee QR</Text>
-                  </TouchableOpacity>
-                </View>
-
                 {/* Pro Feature: Hyperlocal Push Campaigns */}
                 <View style={styles.card}>
                   <View style={styles.sectionHeaderRow}>
@@ -989,14 +958,6 @@ export const OwnerPortalScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-
-      {/* Official Countertop QR Standee Modal */}
-      <CounterQRPopupModal
-        visible={counterQRVisible}
-        shopName={activeShop?.name || 'Specialty Café'}
-        shopId={activeShop?.id || 'cafe-1'}
-        onClose={() => setCounterQRVisible(false)}
-      />
     </SafeAreaView>
   );
 };

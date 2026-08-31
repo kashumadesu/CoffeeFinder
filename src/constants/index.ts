@@ -67,7 +67,7 @@ export const RADIUS = {
   full: 999,
 };
 
-// ---- Philippine Regional Coffee Hubs ----
+// ---- 8 Official Philippine Specialty Coffee Regional Hubs ----
 export const REGION_HUBS: RegionHub[] = [
   {
     id: 'manila',
@@ -89,7 +89,7 @@ export const REGION_HUBS: RegionHub[] = [
   },
   {
     id: 'sagada',
-    name: 'Sagada',
+    name: 'Sagada & Mt. Province',
     island: 'Luzon (Highlands)',
     latitude: 17.0825,
     longitude: 120.9015,
@@ -97,8 +97,26 @@ export const REGION_HUBS: RegionHub[] = [
     longitudeDelta: 0.02,
   },
   {
+    id: 'la-union',
+    name: 'La Union Surf Coast',
+    island: 'Luzon',
+    latitude: 16.6667,
+    longitude: 120.3167,
+    latitudeDelta: 0.03,
+    longitudeDelta: 0.03,
+  },
+  {
+    id: 'antipolo',
+    name: 'Antipolo & Rizal Ridge',
+    island: 'Luzon',
+    latitude: 14.5842,
+    longitude: 121.1763,
+    latitudeDelta: 0.03,
+    longitudeDelta: 0.03,
+  },
+  {
     id: 'cebu',
-    name: 'Cebu City',
+    name: 'Cebu City & Visayas',
     island: 'Visayas',
     latitude: 10.3157,
     longitude: 123.8854,
@@ -106,11 +124,20 @@ export const REGION_HUBS: RegionHub[] = [
     longitudeDelta: 0.03,
   },
   {
-    id: 'siargao',
-    name: 'Siargao Island',
+    id: 'iloilo',
+    name: 'Iloilo City Heritage',
+    island: 'Visayas',
+    latitude: 10.7202,
+    longitude: 122.5621,
+    latitudeDelta: 0.03,
+    longitudeDelta: 0.03,
+  },
+  {
+    id: 'davao',
+    name: 'Davao & Mt. Apo',
     island: 'Mindanao',
-    latitude: 9.7895,
-    longitude: 126.1554,
+    latitude: 7.0731,
+    longitude: 125.6128,
     latitudeDelta: 0.03,
     longitudeDelta: 0.03,
   },
