@@ -31,7 +31,14 @@ import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
 import { TastingNotesSection } from '@components/TastingNotesSection';
 import { InsiderTipsSection } from '@components/InsiderTipsSection';
-import type { CoffeeShop, RootStackParamList } from '@types';
+import { TastingRadarSummary } from '@components/TastingRadarSummary';
+import { ReviewsList } from '@components/ReviewsList';
+import { ReviewComposerModal } from '@components/ReviewComposerModal';
+import { ShopBeansSection } from '@components/ShopBeansSection';
+import { CartModal } from '@components/CartModal';
+import { ShopEventsSection } from '@components/ShopEventsSection';
+import { EventDetailModal } from '@components/EventDetailModal';
+import type { CoffeeShop, RootStackParamList, CoffeeEvent } from '@types';
 
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
 type Nav = StackNavigationProp<RootStackParamList, 'ShopDetail'>;
@@ -47,6 +54,14 @@ export const DetailScreen: React.FC = () => {
   const [menuActiveCategory, setMenuActiveCategory] = useState<string>('All');
   const [tipModalVisible, setTipModalVisible] = useState(false);
   const [selectedTipAmount, setSelectedTipAmount] = useState<number>(50);
+
+  // Phase 2 State
+  const reviews = useStore((s) => s.reviews);
+  const shopReviews = reviews.filter((r) => r.shopId === shop.id);
+  const [composerModalVisible, setComposerModalVisible] = useState(false);
+  const [cartModalVisible, setCartModalVisible] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CoffeeEvent | null>(null);
+  const [eventModalVisible, setEventModalVisible] = useState(false);
 
   const { toggleFavorite, isFavorite } = useFavorites();
   const startNavigation = useStore((s) => s.startNavigation);
@@ -496,6 +511,32 @@ export const DetailScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Phase 2: Fresh Roastery Beans Marketplace & Pre-Orders */}
+        <ShopBeansSection
+          shopId={shop.id}
+          shopName={shop.name}
+          onOpenCart={() => setCartModalVisible(true)}
+        />
+
+        {/* Phase 2: Barista Cupping Sessions & Pop-Up Events */}
+        <ShopEventsSection
+          shopId={shop.id}
+          shopName={shop.name}
+          onSelectEvent={(ev) => {
+            setSelectedEvent(ev);
+            setEventModalVisible(true);
+          }}
+        />
+
+        {/* Phase 2: Sensory Profile Summary */}
+        <TastingRadarSummary reviews={shopReviews} />
+
+        {/* Phase 2: Live Community Reviews & Cupping Feed */}
+        <ReviewsList
+          reviews={shopReviews}
+          onWriteReviewPress={() => setComposerModalVisible(true)}
+        />
+
         {/* Community Insider Tips Board (Plugs, Parking, Off-Menu) */}
         <InsiderTipsSection shop={shop} />
 
@@ -669,6 +710,30 @@ export const DetailScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Phase 2: Review Composer Modal */}
+      <ReviewComposerModal
+        visible={composerModalVisible}
+        shopId={shop.id}
+        shopName={shop.name}
+        onClose={() => setComposerModalVisible(false)}
+      />
+
+      {/* Phase 2: Roastery Beans Cart Modal */}
+      <CartModal
+        visible={cartModalVisible}
+        onClose={() => setCartModalVisible(false)}
+      />
+
+      {/* Phase 2: Event Details & RSVP Modal */}
+      <EventDetailModal
+        event={selectedEvent}
+        visible={eventModalVisible}
+        onClose={() => {
+          setEventModalVisible(false);
+          setSelectedEvent(null);
+        }}
+      />
     </SafeAreaView>
   );
 };

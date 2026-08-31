@@ -262,3 +262,102 @@ export interface NavigationRoute {
   transitSummary?: string;
   transitUnavailableReason?: string;
 }
+
+// ============================================================
+// PHASE 2 TYPES: Community Reviews, Bean Marketplace & Events
+// ============================================================
+
+export type BrewMethod = 'V60 Pour Over' | 'AeroPress' | 'Espresso' | 'Cold Brew' | 'French Press' | 'Syphon';
+
+export type TastingFlavorTag =
+  | 'Floral'
+  | 'Citrus & Bergamot'
+  | 'Brown Sugar'
+  | 'Dark Chocolate'
+  | 'Wild Berry'
+  | 'Jasmine'
+  | 'Caramel'
+  | 'Tropical Fruit'
+  | 'Nutty & Cacao'
+  | 'Smoky Barako';
+
+export interface CommunityReview {
+  id: string;
+  shopId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number; // 1 to 5
+  brewMethod: BrewMethod;
+  beanOriginTag?: BeanOrigin;
+  flavorTags: TastingFlavorTag[];
+  acidity: number; // 1 to 5
+  sweetness: number; // 1 to 5
+  body: number; // 1 to 5
+  comment: string;
+  photoUri?: string;
+  helpfulCount: number;
+  isHelpfulByMe?: boolean;
+  createdAt: string;
+}
+
+export type GrindType =
+  | 'Whole Bean'
+  | 'Espresso (Fine)'
+  | 'Pour Over / Drip (Medium)'
+  | 'French Press / Cold Brew (Coarse)';
+
+export interface CoffeeBean {
+  id: string;
+  roasterShopId: string;
+  roasterName: string;
+  name: string;
+  origin: string;
+  region: string;
+  altitudeMasl: number;
+  varietal: string;
+  process: 'Washed' | 'Natural' | 'Honey' | 'Anaerobic Slow Dry';
+  roastLevel: 'Light' | 'Medium-Light' | 'Medium' | 'Dark';
+  tastingNotes: string[];
+  pricePhp: number;
+  bagWeightGrams: number; // e.g. 250
+  roastDate: string;
+  inStock: boolean;
+  imageUrl: string;
+}
+
+export interface CartItem {
+  id: string;
+  bean: CoffeeBean;
+  grind: GrindType;
+  quantity: number;
+}
+
+export interface CoffeeEvent {
+  id: string;
+  shopId: string;
+  shopName: string;
+  title: string;
+  category: 'Cupping & Tasting' | 'Latte Art Throwdown' | 'Barista Workshop' | 'Weekend Roastery Pop-Up';
+  description: string;
+  eventDate: string;
+  eventTime: string;
+  venueAddress: string;
+  pricePhp: number; // 0 for free
+  maxSlots: number;
+  bookedSlots: number;
+  hostName: string;
+  hostAvatar?: string;
+  imageUrl: string;
+  isRSVPed?: boolean;
+}
+
+export interface EventRSVP {
+  eventId: string;
+  eventTitle: string;
+  shopName: string;
+  eventDate: string;
+  ticketCode: string;
+  rsvpedAt: string;
+}
+

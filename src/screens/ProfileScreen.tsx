@@ -59,6 +59,8 @@ export const ProfileScreen: React.FC = () => {
   const deleteClaim = useStore((s) => s.deleteClaim);
   const revokeClaim = useStore((s) => s.revokeClaim);
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
+  const myRsvps = useStore((s) => s.myRsvps);
+  const reviews = useStore((s) => s.reviews);
 
   // Administrator & Moderation Console State
   const isWhitelisted = !!(
@@ -500,6 +502,63 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.perkText}>GCash / QRPh Cashless Payments</Text>
           </View>
         </View>
+
+        {/* Phase 2: Active Event Passes & Cupping Tickets */}
+        {myRsvps.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardHeaderLeft}>
+                <Feather name="calendar" size={16} color={COLORS.primary} />
+                <Text style={styles.cardTitle}>Event Passes & Tickets</Text>
+              </View>
+              <Text style={styles.cardSubCount}>{myRsvps.length} Active</Text>
+            </View>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {myRsvps.map((rsvp) => (
+                <View
+                  key={rsvp.eventId}
+                  style={{
+                    backgroundColor: '#E8F5E9',
+                    borderRadius: RADIUS.md,
+                    padding: SPACING.sm,
+                    borderWidth: 1,
+                    borderColor: '#C8E6C9',
+                    gap: 3,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 13, fontWeight: '800', color: '#1B5E20', flex: 1 }}
+                      numberOfLines={1}
+                    >
+                      {rsvp.eventTitle}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        fontWeight: '900',
+                        color: '#2E7D32',
+                      }}
+                    >
+                      {rsvp.ticketCode}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>
+                    {rsvp.shopName} • {rsvp.eventDate}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* ============================================================
             ADMINISTRATOR & MODERATION CONSOLE (ROLE-BASED & PIN-LOCKED)
