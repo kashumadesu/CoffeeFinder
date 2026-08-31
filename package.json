@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "web:admin": "node web-admin/server.js"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
