@@ -224,6 +224,9 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const shops = await searchNearbyCoffee(loc, get().filters);
       set({ shops, isLoading: false, isOffline: false });
+      if (get().filters.searchQuery.trim()) {
+        logSearchEvent(get().filters.searchQuery.trim(), get().currentRegion.id, shops.length);
+      }
       try {
         await AsyncStorage.setItem(CACHED_SHOPS_KEY, JSON.stringify(shops));
       } catch {}
@@ -249,18 +252,21 @@ export const useStore = create<AppState>((set, get) => ({
   setFilters: (newFilters) => {
     const filters = { ...get().filters, ...newFilters };
     set({ filters });
+    logFilterEvent('batch_filters', newFilters);
     get().fetchNearbyShops();
   },
 
   setCategory: (activeCategory) => {
     const filters = { ...get().filters, activeCategory };
     set({ filters });
+    logFilterEvent('category', activeCategory);
     get().fetchNearbyShops();
   },
 
   setPriceTier: (priceTier) => {
     const filters = { ...get().filters, priceTier };
     set({ filters });
+    logFilterEvent('price_tier', priceTier);
     get().fetchNearbyShops();
   },
 
@@ -273,6 +279,7 @@ export const useStore = create<AppState>((set, get) => ({
   toggleGcashOnly: () => {
     const filters = { ...get().filters, gcashOnly: !get().filters.gcashOnly };
     set({ filters });
+    logFilterEvent('gcash_only', filters.gcashOnly);
     get().fetchNearbyShops();
   },
 

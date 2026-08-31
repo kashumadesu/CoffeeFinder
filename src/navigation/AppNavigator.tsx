@@ -33,7 +33,7 @@ const MainTabs: React.FC = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarIcon: ({ focused, color, size }) => {
+      tabBarIcon: ({ color }) => {
         const iconName = TAB_ICONS[route.name] ?? 'coffee';
         return <Feather name={iconName} size={22} color={color} />;
       },

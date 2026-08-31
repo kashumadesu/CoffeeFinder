@@ -9,6 +9,7 @@ import { COLORS, RADIUS, SPACING } from '@constants';
 import type { CommunityReview } from '@types';
 import { useStore } from '@store/useStore';
 import { hapticSelection } from '@utils/haptics';
+import { logReviewHelpfulVote } from '@services/analytics';
 
 interface Props {
   reviews: CommunityReview[];
@@ -119,6 +120,7 @@ export const ReviewsList: React.FC<Props> = ({ reviews, onWriteReviewPress }) =>
                   onPress={() => {
                     hapticSelection();
                     voteReviewHelpful(rev.id);
+                    logReviewHelpfulVote(rev.id);
                   }}
                   activeOpacity={0.8}
                 >

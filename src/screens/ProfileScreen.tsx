@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, REGION_HUBS } from '@constants';
+import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 import {
   loginWithEmail,
@@ -24,13 +24,6 @@ import {
 import { promptGoogleSignIn } from '@services/googleAuth';
 import { promptFacebookSignIn } from '@services/facebookAuth';
 import { hapticSuccess, hapticMedium, hapticWarning } from '@utils/haptics';
-import type {
-  CoffeeShop,
-  OwnerClaimRequest,
-  OutletRating,
-  LiveSeatingStatus,
-  BeanOrigin,
-} from '@types';
 
 const ADMIN_EMAILS = [
   'michaelapril81416@gmail.com',
@@ -186,8 +179,8 @@ export const ProfileScreen: React.FC = () => {
 
   const handleSocialLogin = (provider: 'Apple') => {
     Alert.alert(
-      'Apple Sign-In',
-      'Apple Sign-In will activate automatically upon App Store submission with your Apple Developer Account.',
+      `${provider} Sign-In`,
+      `${provider} Sign-In will activate automatically upon App Store submission with your Apple Developer Account.`,
     );
   };
 
@@ -378,11 +371,15 @@ export const ProfileScreen: React.FC = () => {
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{stamps.filter((s) => s.unlocked).length}</Text>
-            <Text style={styles.statLabel}>Stamps Earned</Text>
+            <Text style={styles.statLabel}>Stamps</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stamps.filter((s) => s.unlocked).reduce((acc, s) => acc + s.cafesCount, 0)}</Text>
-            <Text style={styles.statLabel}>Cafés Logged</Text>
+            <Text style={styles.statNumber}>{reviews.length}</Text>
+            <Text style={styles.statLabel}>Cuppings</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{myRsvps.length}</Text>
+            <Text style={styles.statLabel}>Events</Text>
           </View>
         </View>
 
@@ -574,7 +571,9 @@ export const ProfileScreen: React.FC = () => {
                   <Text style={styles.cardTitle}>Permit Verification Console</Text>
                   {hasAdminAccess && (
                     <View style={styles.adminBadgeActive}>
-                      <Text style={styles.adminBadgeActiveText}>ADMIN ACTIVE</Text>
+                      <Text style={styles.adminBadgeActiveText}>
+                        ADMIN ACTIVE • {verifiedOwnerShopIds.length} VERIFIED
+                      </Text>
                     </View>
                   )}
                 </View>

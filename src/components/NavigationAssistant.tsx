@@ -199,9 +199,9 @@ export const NavigationAssistant: React.FC<Props> = ({
 
       {/* Bottom Floating Navigation HUD & Controls */}
       <View style={styles.bottomBar}>
-        {/* Top Info Row: ETA, Distance, and Actions */}
+        {/* Top Info Row: Destination & ETA Info */}
         <View style={styles.bottomTopRow}>
-          <View style={styles.etaLeftCol}>
+          <TouchableOpacity style={styles.etaLeftCol} onPress={onViewShopDetail} activeOpacity={0.85}>
             <Text style={styles.etaTime}>
               {isTransitUnavailable ? 'No Rail Line' : route ? route.durationText : 'Calculating…'}
             </Text>
@@ -212,7 +212,7 @@ export const NavigationAssistant: React.FC<Props> = ({
                 ? `${route.distanceText} • to ${shop.name}`
                 : shop.name}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Right Action Icons */}
           <View style={styles.actionsRow}>

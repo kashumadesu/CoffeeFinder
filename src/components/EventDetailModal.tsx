@@ -18,6 +18,7 @@ import { COLORS, RADIUS, SPACING } from '@constants';
 import type { CoffeeEvent } from '@types';
 import { useStore } from '@store/useStore';
 import { hapticSuccess, hapticSelection } from '@utils/haptics';
+import { logEventRSVP } from '@services/analytics';
 
 interface Props {
   event: CoffeeEvent | null;
@@ -55,6 +56,7 @@ export const EventDetailModal: React.FC<Props> = ({ event, visible, onClose }) =
         return;
       }
       rsvpEvent(event.id);
+      logEventRSVP(event.id, event.title, event.shopName, event.pricePhp);
       hapticSuccess();
       Alert.alert(
         'RSVP Confirmed! 🎉',

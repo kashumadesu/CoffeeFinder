@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '@constants';
 import { useStore } from '@store/useStore';
 import { hapticSuccess, hapticSelection } from '@utils/haptics';
+import { logBeanOrderCheckout } from '@services/analytics';
 
 interface Props {
   visible: boolean;
@@ -50,6 +51,7 @@ export const CartModal: React.FC<Props> = ({ visible, onClose }) => {
     setIsProcessing(true);
     setTimeout(async () => {
       await checkoutOrder(deliveryAddress, paymentMethod);
+      logBeanOrderCheckout(total, cart.length, paymentMethod);
       setIsProcessing(false);
       hapticSuccess();
       Alert.alert(
@@ -74,9 +76,24 @@ export const CartModal: React.FC<Props> = ({ visible, onClose }) => {
               <Text style={styles.subtitle}>Direct dispatch from Philippine specialty roasters</Text>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {cart.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    hapticSelection();
+                    clearCart();
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={{ fontSize: 11.5, color: COLORS.danger, fontWeight: '700' }}>
+                    Clear All
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Feather name="x" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {cart.length === 0 ? (
@@ -129,6 +146,16 @@ export const CartModal: React.FC<Props> = ({ visible, onClose }) => {
                         }}
                       >
                         <Feather name="plus" size={12} color={COLORS.textPrimary} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.qtyBtn, { marginLeft: 4, backgroundColor: '#FDEEE9' }]}
+                        onPress={() => {
+                          hapticSelection();
+                          removeFromCart(item.id);
+                        }}
+                      >
+                        <Feather name="trash-2" size={12} color={COLORS.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>

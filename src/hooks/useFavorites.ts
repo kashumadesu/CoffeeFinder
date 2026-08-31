@@ -13,8 +13,7 @@ export function useFavorites() {
 
   useEffect(() => {
     loadFavorites();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadFavorites]);
 
   return { favorites, toggleFavorite, isFavorite };
 }

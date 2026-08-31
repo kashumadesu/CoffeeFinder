@@ -21,6 +21,7 @@ import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 import type { BrewMethod, TastingFlavorTag, BeanOrigin } from '@types';
 import { hapticSuccess, hapticSelection } from '@utils/haptics';
+import { logReviewSubmitted } from '@services/analytics';
 
 interface Props {
   visible: boolean;
@@ -122,6 +123,7 @@ export const ReviewComposerModal: React.FC<Props> = ({
       photoUri: photoUri || undefined,
     });
 
+    logReviewSubmitted(shopId, rating, brewMethod, selectedTags);
     hapticSuccess();
     Alert.alert('Review Published!', `Thank you for sharing your tasting notes for "${shopName}".`);
     setComment('');

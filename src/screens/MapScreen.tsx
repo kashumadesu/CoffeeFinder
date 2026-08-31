@@ -19,7 +19,7 @@ import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { Feather } from '@expo/vector-icons';
-import { hapticLight, hapticSelection } from '@utils/haptics';
+import { hapticLight } from '@utils/haptics';
 
 import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA, getPhotoUrl } from '@constants';
 import { useStore } from '@store/useStore';
@@ -35,7 +35,7 @@ import { ShopCard } from '@components/ShopCard';
 import { RatingStars } from '@components/RatingStars';
 import { formatDistance } from '@services/googlePlaces';
 import { fetchDirectionsRoute, generateFallbackRoute } from '@services/directions';
-import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute, NavigationMode } from '@types';
+import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute } from '@types';
 
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -312,6 +312,23 @@ export const MapScreen: React.FC = () => {
           <Feather name="wifi-off" size={12} color="#6E4822" />
           <Text style={styles.offlineText}>Offline Mode (Cached Hub)</Text>
         </View>
+      )}
+
+      {/* Floating GCash-accepted Filter Badge (Bottom Left) */}
+      {!activeNavigationShop && (
+        <TouchableOpacity
+          style={[styles.gcashFloatingPill, gcashOnly && styles.gcashFloatingPillActive]}
+          onPress={() => {
+            hapticLight();
+            toggleGcashOnly();
+          }}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.gcashDotSmall, gcashOnly && { backgroundColor: '#FFFFFF' }]} />
+          <Text style={[styles.gcashPillText, gcashOnly && styles.gcashPillTextActive]}>
+            GCash-accepted
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Floating Controls (Map Layer + GPS on Bottom Right) */}
@@ -940,5 +957,43 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 19,
+  },
+  gcashFloatingPill: {
+    position: 'absolute',
+    left: SPACING.md,
+    bottom: 110,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    zIndex: 15,
+  },
+  gcashFloatingPillActive: {
+    backgroundColor: '#007DFE',
+    borderColor: '#007DFE',
+  },
+  gcashDotSmall: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#007DFE',
+  },
+  gcashPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  gcashPillTextActive: {
+    color: '#FFFFFF',
   },
 });

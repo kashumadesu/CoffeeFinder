@@ -31,7 +31,11 @@ export const ShopEventsSection: React.FC<Props> = ({ shopId, shopName, onSelectE
           <Feather name="calendar" size={16} color={COLORS.primary} />
           <Text style={styles.title}>Barista Sessions & Pop-ups</Text>
         </View>
-        <Text style={styles.subtitle}>Cuppings, workshops & events hosted here</Text>
+        <Text style={styles.subtitle}>
+          {shopEvents.length > 0
+            ? `Cuppings, workshops & events at ${shopName}`
+            : 'Upcoming Philippine specialty events'}
+        </Text>
       </View>
 
       <View style={styles.eventsList}>

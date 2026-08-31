@@ -11,7 +11,7 @@ import {
   onAuthStateChanged,
   type User,
 } from 'firebase/auth';
-// @ts-ignore
+// @ts-expect-error Firebase RN persistence typing quirk
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -19,7 +19,6 @@ import {
   collection,
   doc,
   setDoc,
-  getDocs,
   updateDoc,
   onSnapshot,
   query,

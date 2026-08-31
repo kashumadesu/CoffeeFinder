@@ -22,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 import { uploadPermitPhoto } from '@services/firebase';
-import { hapticSuccess, hapticMedium, hapticWarning } from '@utils/haptics';
+import { hapticSuccess, hapticMedium } from '@utils/haptics';
 import type {
   LiveSeatingStatus,
   OwnerVerificationStatus,
@@ -37,51 +37,47 @@ interface Plan {
   price: string;
   period: string;
   badge?: string;
-  features: string[];
   recommended?: boolean;
+  features: string[];
 }
 
 const PLANS: Plan[] = [
   {
     id: 'free',
-    name: 'Free Basic',
+    name: 'Claimed Spot',
     price: '₱0',
-    period: 'forever',
+    period: 'forever free',
     features: [
-      'Verified ownership badge on café profile',
-      'Edit opening hours, menu & price range',
-      'Upload up to 3 gallery photos',
-      'Manual seating status toggle',
-      'Basic weekly views count',
+      'Verified Badge (DTI/Mayor Permit check)',
+      'Real-time Seating status toggle',
+      'Update Wi-Fi speed & menu photos',
+      'Direct customer chat inquiries',
     ],
   },
   {
     id: 'starter',
-    name: 'Starter Café',
-    price: '₱299',
-    period: 'per month',
+    name: 'Single Origin',
+    price: '₱499',
+    period: '/month',
+    badge: 'POPULAR',
     recommended: true,
     features: [
-      'All Free features',
-      'Up to 10 gallery photos',
-      'Verified Wi-Fi speed badge',
-      'GCash / QRPh payment badge',
-      'Featured map pin highlight',
-      'Weekly direction request analytics',
+      'Everything in Claimed Spot',
+      'Highlighted Pin on Specialty Map',
+      'Tasting Notes spotlight card',
+      'Priority support from KapeRoute team',
     ],
   },
   {
     id: 'pro',
-    name: 'Pro Roastery',
-    price: '₱799',
-    period: 'per month',
-    badge: 'Most Popular',
+    name: 'Master Roaster',
+    price: '₱1,299',
+    period: '/month',
+    badge: 'BEST VALUE',
     features: [
-      'All Starter features',
-      'Real-time seating % tracker',
-      'Hyperlocal push notifications to nearby coffee lovers',
-      'Top placement in Discover feed',
-      'Digital brew recipe & menu card',
+      'Everything in Single Origin',
+      'Custom push notification broadcast (1x/week)',
+      'Digital Coffee Passport Stamp feature',
       'Monthly customer growth analytics',
     ],
   },
@@ -90,10 +86,8 @@ const PLANS: Plan[] = [
 export const OwnerPortalScreen: React.FC = () => {
   const shops = useStore((s) => s.shops);
   const updateShopLiveStatus = useStore((s) => s.updateShopLiveStatus);
-  const claimRequests = useStore((s) => s.claimRequests);
   const submitClaim = useStore((s) => s.submitClaim);
   const isShopClaimed = useStore((s) => s.isShopClaimed);
-  const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
   const liveHeartbeatEvents = useStore((s) => s.liveHeartbeatEvents);
 
   // Verification State (Defaults to 'unregistered' so portal is locked by default)
@@ -273,6 +267,9 @@ export const OwnerPortalScreen: React.FC = () => {
 
     const url = PAYMONGO_LINKS[method];
     try {
+      if (checkoutPlan) {
+        setCurrentPlan(checkoutPlan.id);
+      }
       const supported = await Linking.canOpenURL(url);
       if (supported) {
         await Linking.openURL(url);

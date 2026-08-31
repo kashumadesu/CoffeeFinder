@@ -110,7 +110,7 @@ export async function searchNearbyCoffee(
   userLocation: Location,
   filters: Filters,
 ): Promise<CoffeeShop[]> {
-  let combinedShops: CoffeeShop[] = [];
+  const combinedShops: CoffeeShop[] = [];
 
   const isPlaceholderKey =
     !GOOGLE_PLACES_API_KEY ||
@@ -122,7 +122,7 @@ export async function searchNearbyCoffee(
 
   if (!isPlaceholderKey) {
     try {
-      let rawResults: NearbyResult[] = [];
+      const rawResults: NearbyResult[] = [];
 
       if (isSearch) {
         // User typed a search term (e.g. "tbc", "Starbucks", "Chapter", "Novaliches cafe")

@@ -9,10 +9,11 @@ import { COLORS, RADIUS, SPACING } from '@constants';
 import type { CoffeeBean, GrindType } from '@types';
 import { useStore } from '@store/useStore';
 import { hapticSuccess, hapticSelection } from '@utils/haptics';
+import { logBeanAddToCart } from '@services/analytics';
 
 interface Props {
   shopId: string;
-  shopName: string;
+  shopName?: string;
   onOpenCart: () => void;
 }
 
@@ -23,12 +24,11 @@ const GRIND_OPTIONS: GrindType[] = [
   'French Press / Cold Brew (Coarse)',
 ];
 
-export const ShopBeansSection: React.FC<Props> = ({ shopId, shopName, onOpenCart }) => {
+export const ShopBeansSection: React.FC<Props> = ({ shopId, onOpenCart }) => {
   const allBeans = useStore((s) => s.beans);
   const addToCart = useStore((s) => s.addToCart);
   const cart = useStore((s) => s.cart);
 
-  const [selectedBean, setSelectedBean] = useState<CoffeeBean | null>(null);
   const [selectedGrind, setSelectedGrind] = useState<GrindType>('Whole Bean');
 
   // Filter beans matching this roaster shop or show recommended single origins
@@ -40,6 +40,7 @@ export const ShopBeansSection: React.FC<Props> = ({ shopId, shopName, onOpenCart
   const handleAddToCart = (bean: CoffeeBean) => {
     hapticSuccess();
     addToCart(bean, selectedGrind, 1);
+    logBeanAddToCart(bean.id, bean.name, selectedGrind, bean.pricePhp);
     Alert.alert(
       'Added to Cart!',
       `1x "${bean.name}" (${selectedGrind}) added to your coffee bean order.`,
