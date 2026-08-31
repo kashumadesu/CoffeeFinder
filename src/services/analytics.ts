@@ -130,32 +130,3 @@ export const logReviewSubmitted = (
 export const logReviewHelpfulVote = (reviewId: string) => {
   return logEvent('review_helpful_voted', { reviewId });
 };
-
-/** Phase 2: Log bean added to roastery cart */
-export const logBeanAddToCart = (
-  beanId: string,
-  beanName: string,
-  grind: string,
-  pricePhp: number,
-) => {
-  return logEvent('bean_added_to_cart', { beanId, beanName, grind, pricePhp });
-};
-
-/** Phase 2: Log roastery pre-order checkout */
-export const logBeanOrderCheckout = (
-  orderTotal: number,
-  itemCount: number,
-  paymentMethod: string,
-) => {
-  return logEvent('bean_order_checkout', { orderTotal, itemCount, paymentMethod });
-};
-
-/** Phase 2: Log barista event RSVP */
-export const logEventRSVP = (
-  eventId: string,
-  eventTitle: string,
-  shopName: string,
-  pricePhp: number,
-) => {
-  return logEvent('barista_event_rsvped', { eventId, eventTitle, shopName, pricePhp });
-};

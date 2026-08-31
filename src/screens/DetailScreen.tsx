@@ -34,11 +34,7 @@ import { InsiderTipsSection } from '@components/InsiderTipsSection';
 import { TastingRadarSummary } from '@components/TastingRadarSummary';
 import { ReviewsList } from '@components/ReviewsList';
 import { ReviewComposerModal } from '@components/ReviewComposerModal';
-import { ShopBeansSection } from '@components/ShopBeansSection';
-import { CartModal } from '@components/CartModal';
-import { ShopEventsSection } from '@components/ShopEventsSection';
-import { EventDetailModal } from '@components/EventDetailModal';
-import type { CoffeeShop, RootStackParamList, CoffeeEvent } from '@types';
+import type { CoffeeShop, RootStackParamList } from '@types';
 
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
 type Nav = StackNavigationProp<RootStackParamList, 'ShopDetail'>;
@@ -55,15 +51,10 @@ export const DetailScreen: React.FC = () => {
   const [tipModalVisible, setTipModalVisible] = useState(false);
   const [selectedTipAmount, setSelectedTipAmount] = useState<number>(50);
 
-  // Phase 2 State
+  // Reviews & Cupping State
   const reviews = useStore((s) => s.reviews);
   const shopReviews = reviews.filter((r) => r.shopId === shop.id);
-  const cart = useStore((s) => s.cart);
-  const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const [composerModalVisible, setComposerModalVisible] = useState(false);
-  const [cartModalVisible, setCartModalVisible] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CoffeeEvent | null>(null);
-  const [eventModalVisible, setEventModalVisible] = useState(false);
 
   const { toggleFavorite, isFavorite } = useFavorites();
   const startNavigation = useStore((s) => s.startNavigation);
@@ -180,33 +171,6 @@ export const DetailScreen: React.FC = () => {
           {shop.name}
         </Text>
         <View style={styles.topActionsRow}>
-          {totalCartCount > 0 && (
-            <TouchableOpacity
-              style={[styles.headerActionBtn, { position: 'relative' }]}
-              onPress={() => setCartModalVisible(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Feather name="shopping-bag" size={19} color={COLORS.primary} />
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -4,
-                  backgroundColor: COLORS.primary,
-                  borderRadius: 9,
-                  minWidth: 16,
-                  height: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingHorizontal: 3,
-                }}
-              >
-                <Text style={{ fontSize: 9.5, fontWeight: '900', color: '#FFFFFF' }}>
-                  {totalCartCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={[
               styles.headerActionBtn,
@@ -637,23 +601,6 @@ export const DetailScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Phase 2: Fresh Roastery Beans Marketplace & Pre-Orders */}
-        <ShopBeansSection
-          shopId={shop.id}
-          shopName={shop.name}
-          onOpenCart={() => setCartModalVisible(true)}
-        />
-
-        {/* Phase 2: Barista Cupping Sessions & Pop-Up Events */}
-        <ShopEventsSection
-          shopId={shop.id}
-          shopName={shop.name}
-          onSelectEvent={(ev) => {
-            setSelectedEvent(ev);
-            setEventModalVisible(true);
-          }}
-        />
-
         {/* Phase 2: Sensory Profile Summary */}
         <TastingRadarSummary reviews={shopReviews} />
 
@@ -843,22 +790,6 @@ export const DetailScreen: React.FC = () => {
         shopId={shop.id}
         shopName={shop.name}
         onClose={() => setComposerModalVisible(false)}
-      />
-
-      {/* Phase 2: Roastery Beans Cart Modal */}
-      <CartModal
-        visible={cartModalVisible}
-        onClose={() => setCartModalVisible(false)}
-      />
-
-      {/* Phase 2: Event Details & RSVP Modal */}
-      <EventDetailModal
-        event={selectedEvent}
-        visible={eventModalVisible}
-        onClose={() => {
-          setEventModalVisible(false);
-          setSelectedEvent(null);
-        }}
       />
     </SafeAreaView>
   );
