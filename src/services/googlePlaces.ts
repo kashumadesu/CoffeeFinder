@@ -39,8 +39,39 @@ export function formatDistance(metres: number): string {
 
 export function matchesCategory(shop: CoffeeShop, category: Filters['activeCategory']): boolean {
   switch (category) {
+    case 'plentiful_plugs':
     case 'outlets':
-      return !!shop.hasOutlets;
+      return shop.outletRating === 'plentiful' || !!shop.hasOutlets;
+    case 'garahe_popup':
+      return (
+        shop.cafeFormat === 'garage_popup' ||
+        shop.vibeTags?.some(
+          (t) => t.toLowerCase().includes('garahe') || t.toLowerCase().includes('popup'),
+        ) ||
+        shop.name.toLowerCase().includes('garahe')
+      );
+    case 'origin_sagada':
+      return Boolean(
+        shop.beanOrigins?.includes('sagada') ||
+        shop.brewRecipe?.beanOrigin.toLowerCase().includes('sagada') ||
+        shop.name.toLowerCase().includes('sagada'),
+      );
+    case 'origin_apo':
+      return Boolean(
+        shop.beanOrigins?.includes('apo') ||
+        shop.brewRecipe?.beanOrigin.toLowerCase().includes('apo'),
+      );
+    case 'origin_barako':
+      return Boolean(
+        shop.beanOrigins?.includes('barako') ||
+        shop.brewRecipe?.beanOrigin.toLowerCase().includes('barako') ||
+        shop.name.toLowerCase().includes('barako'),
+      );
+    case 'origin_benguet':
+      return Boolean(
+        shop.beanOrigins?.includes('benguet') ||
+        shop.brewRecipe?.beanOrigin.toLowerCase().includes('benguet'),
+      );
     case 'specialty':
       return !!shop.isSpecialty;
     case 'alfresco':

@@ -1,5 +1,5 @@
 // ============================================================
-// ShopCard — Specialty Café Preview Card (Minimalist & Detailed)
+// ShopCard — Specialty Café Preview Card with Outlets & Origin Badges
 // ============================================================
 
 import React from 'react';
@@ -28,6 +28,18 @@ export const ShopCard: React.FC<Props> = ({
   const photoUrl =
     shop.galleryUrls?.[0] ??
     (shop.photos?.[0] ? getPhotoUrl(shop.photos[0].photoReference, 400) : null);
+
+  const primaryOrigin = shop.beanOrigins?.[0];
+  const originLabel =
+    primaryOrigin === 'sagada'
+      ? '🌱 Sagada'
+      : primaryOrigin === 'apo'
+      ? '🏔️ Mt. Apo'
+      : primaryOrigin === 'barako'
+      ? '☕ Barako'
+      : primaryOrigin === 'benguet'
+      ? '🌿 Benguet'
+      : null;
 
   return (
     <TouchableOpacity
@@ -91,6 +103,41 @@ export const ShopCard: React.FC<Props> = ({
           )}
         </View>
 
+        {/* Cultural & WFC Utility Badges Row */}
+        <View style={styles.wfcBadgeRow}>
+          {/* Outlets-per-Table Index */}
+          {shop.outletRating === 'plentiful' && (
+            <View style={styles.outletPillPlentiful}>
+              <Feather name="zap" size={9.5} color="#1B5E20" />
+              <Text style={styles.outletTextPlentiful}>Plentiful Plugs</Text>
+            </View>
+          )}
+          {shop.outletRating === 'wall_only' && (
+            <View style={styles.outletPillWall}>
+              <Text style={styles.outletTextWall}>⚠️ Wall Plugs</Text>
+            </View>
+          )}
+          {shop.outletRating === 'laptop_ban' && (
+            <View style={styles.outletPillBan}>
+              <Text style={styles.outletTextBan}>🚫 Study Ban</Text>
+            </View>
+          )}
+
+          {/* Kape sa Garahe Tag */}
+          {shop.cafeFormat === 'garage_popup' && (
+            <View style={styles.garageTag}>
+              <Text style={styles.garageTagText}>🚐 Garahe</Text>
+            </View>
+          )}
+
+          {/* Heritage Origin Tag */}
+          {originLabel && (
+            <View style={styles.originTag}>
+              <Text style={styles.originTagText}>{originLabel}</Text>
+            </View>
+          )}
+        </View>
+
         {/* Price Range & Vibe Row */}
         <View style={styles.bottomRow}>
           {shop.priceRange ? (
@@ -138,52 +185,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
-    marginHorizontal: SPACING.md,
-    marginVertical: 4,
-    padding: 10,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    elevation: 2,
+    borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
     shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    alignItems: 'center',
   },
   cardCompact: {
-    marginHorizontal: SPACING.sm,
+    padding: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   imageContainer: {
-    width: 88,
-    height: 88,
+    width: 80,
+    height: 80,
     borderRadius: RADIUS.sm,
     overflow: 'hidden',
+    backgroundColor: COLORS.surfaceWarm,
     position: 'relative',
+    marginRight: SPACING.sm,
   },
   image: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: COLORS.surfaceWarm,
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     position: 'absolute',
     top: 4,
     left: 4,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
   },
-  badgeOpen: { backgroundColor: COLORS.success },
-  badgeClosed: { backgroundColor: COLORS.danger },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  badgeOpen: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+  },
+  badgeClosed: {
+    backgroundColor: 'rgba(244, 67, 54, 0.9)',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
   info: {
     flex: 1,
-    paddingLeft: SPACING.sm + 2,
     justifyContent: 'center',
     gap: 3,
   },
@@ -196,72 +252,148 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    flexShrink: 1,
+    flex: 1,
   },
   verifiedBadge: {
-    padding: 1,
+    marginLeft: 2,
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   address: {
     fontSize: 11.5,
     color: COLORS.textSecondary,
-    flexShrink: 1,
+    flex: 1,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 1,
+    gap: 8,
   },
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   distance: {
     fontSize: 11,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
+    color: COLORS.textMuted,
+  },
+  // WFC & Cultural Badges Row
+  wfcBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  outletPillPlentiful: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#E8F5E9',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: '#C8E6C9',
+  },
+  outletTextPlentiful: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#1B5E20',
+  },
+  outletPillWall: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: '#FFE082',
+  },
+  outletTextWall: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#E65100',
+  },
+  outletPillBan: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: '#FFCDD2',
+  },
+  outletTextBan: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#C62828',
+  },
+  garageTag: {
+    backgroundColor: '#EFEBE9',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: '#D7CCC8',
+  },
+  garageTagText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#4E342E',
+  },
+  originTag: {
+    backgroundColor: '#EDE7F6',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: '#D1C4E9',
+  },
+  originTagText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#512DA8',
   },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 3,
+    marginTop: 2,
   },
   priceRangePill: {
-    backgroundColor: COLORS.surfaceSage,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
   },
   priceRangeText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
     color: COLORS.primary,
   },
   priceLevelText: {
     fontSize: 11,
+    color: COLORS.primary,
     fontWeight: '700',
-    color: COLORS.textSecondary,
   },
   vibeTag: {
-    backgroundColor: COLORS.tagBrownBg,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: COLORS.surfaceWarm,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
   },
   vibeTagText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.tagBrown,
+    color: COLORS.textMuted,
+    fontWeight: '500',
   },
   favoriteBtn: {
-    justifyContent: 'center',
-    paddingHorizontal: 4,
+    padding: SPACING.xs,
+    marginLeft: 4,
   },
 });

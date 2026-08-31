@@ -30,6 +30,7 @@ import { useStore } from '@store/useStore';
 import { RatingStars } from '@components/RatingStars';
 import { PhotoMosaic } from '@components/PhotoMosaic';
 import { TastingNotesSection } from '@components/TastingNotesSection';
+import { InsiderTipsSection } from '@components/InsiderTipsSection';
 import type { CoffeeShop, RootStackParamList } from '@types';
 
 type Route = RouteProp<RootStackParamList, 'ShopDetail'>;
@@ -239,38 +240,112 @@ export const DetailScreen: React.FC = () => {
               )}
             </View>
 
-            {/* Live Amenities Box */}
-            <View style={styles.amenitiesContainer}>
-              <View style={styles.amenityRow}>
-                <Feather
-                  name="check-circle"
-                  size={14}
-                  color={COLORS.success}
-                />
-                <Text style={styles.amenityLabel}>Live Status: </Text>
-                <Text style={styles.amenityValue}>
-                  {shop.seatingStatus === 'available'
-                    ? 'Seats Available (Plenty)'
-                    : shop.seatingStatus === 'moderate'
-                    ? 'Seats Available (Moderate)'
-                    : 'Few Seats Left'}
-                </Text>
+            {/* Work-From-Café (WFC) & Outlets Scorecard */}
+            <View style={styles.wfcScorecard}>
+              <View style={styles.wfcHeaderRow}>
+                <Feather name="briefcase" size={13} color={COLORS.primary} />
+                <Text style={styles.wfcHeaderTitle}>Work-From-Café (WFC) Index</Text>
               </View>
 
-              <View style={styles.amenityRow}>
-                <Feather name="wifi" size={14} color={COLORS.textMuted} />
-                <Text style={styles.amenityLabel}>Wi-Fi: </Text>
-                <Text style={styles.amenityValue}>
-                  {shop.wifiSpeed ?? 'Fast (200 Mbps+ verified)'}
-                </Text>
-              </View>
+              <View style={styles.wfcGrid}>
+                {/* Outlets Index */}
+                <View style={styles.wfcItem}>
+                  <Feather
+                    name="zap"
+                    size={14}
+                    color={
+                      shop.outletRating === 'plentiful'
+                        ? '#1B5E20'
+                        : shop.outletRating === 'wall_only'
+                        ? '#E65100'
+                        : '#C62828'
+                    }
+                  />
+                  <Text style={styles.wfcItemLabel}>Outlets:</Text>
+                  <Text
+                    style={[
+                      styles.wfcItemValue,
+                      shop.outletRating === 'plentiful' && styles.wfcValueGreen,
+                      shop.outletRating === 'wall_only' && styles.wfcValueOrange,
+                      shop.outletRating === 'laptop_ban' && styles.wfcValueRed,
+                    ]}
+                  >
+                    {shop.outletRating === 'plentiful'
+                      ? '⚡ Plentiful (Almost all tables)'
+                      : shop.outletRating === 'wall_only'
+                      ? '⚠️ Wall-Only (1–2 shared sockets)'
+                      : shop.outletRating === 'laptop_ban'
+                      ? '🚫 Weekend Laptop Ban'
+                      : '⚡ Available at tables'}
+                  </Text>
+                </View>
 
-              <View style={styles.amenityRow}>
-                <Feather name="zap" size={14} color={COLORS.textMuted} />
-                <Text style={styles.amenityLabel}>Outlets: </Text>
-                <Text style={styles.amenityValue}>Available at most tables</Text>
+                {/* Wi-Fi Speed */}
+                <View style={styles.wfcItem}>
+                  <Feather name="wifi" size={14} color={COLORS.primary} />
+                  <Text style={styles.wfcItemLabel}>Wi-Fi:</Text>
+                  <Text style={styles.wfcItemValue}>
+                    {shop.wifiSpeed ?? '200 Mbps+ Verified'}
+                  </Text>
+                </View>
+
+                {/* A/C & Comfort */}
+                <View style={styles.wfcItem}>
+                  <Feather name="sun" size={14} color="#E65100" />
+                  <Text style={styles.wfcItemLabel}>A/C Level:</Text>
+                  <Text style={styles.wfcItemValue}>
+                    {shop.acLevel === 'high_chilly'
+                      ? '❄️ High A/C (Bring Jacket)'
+                      : shop.acLevel === 'al_fresco_warm'
+                      ? '🌿 Al Fresco Breezy'
+                      : '❄️ Comfortable Cool'}
+                  </Text>
+                </View>
+
+                {/* Noise Meter */}
+                <View style={styles.wfcItem}>
+                  <Feather name="volume-2" size={14} color={COLORS.textSecondary} />
+                  <Text style={styles.wfcItemLabel}>Noise:</Text>
+                  <Text style={styles.wfcItemValue}>
+                    {shop.noiseLevel === 'quiet_zoom'
+                      ? '🎧 Zoom-Call Friendly'
+                      : shop.noiseLevel === 'social_loud'
+                      ? '☕ Social & Lively Music'
+                      : '🎧 Moderate Cafe Ambience'}
+                  </Text>
+                </View>
               </View>
             </View>
+
+            {/* Philippine Single-Origin Heritage Bean Card */}
+            {(shop.beanOrigins && shop.beanOrigins.length > 0) || shop.brewRecipe ? (
+              <View style={styles.originCard}>
+                <View style={styles.originCardHeader}>
+                  <Feather name="feather" size={13} color="#512DA8" />
+                  <Text style={styles.originCardTitle}>Philippine Single-Origin Heritage</Text>
+                </View>
+                <Text style={styles.originCardSub}>
+                  Direct-trade beans sourced from local highland farmers:
+                </Text>
+                <View style={styles.originBadgesRow}>
+                  {(shop.beanOrigins ?? ['sagada']).map((origin) => (
+                    <View key={origin} style={styles.originBadgePill}>
+                      <Text style={styles.originBadgeText}>
+                        {origin === 'sagada'
+                          ? '🌱 Sagada Arabica'
+                          : origin === 'apo'
+                          ? '🏔️ Mt. Apo Typica'
+                          : origin === 'barako'
+                          ? '☕ Cavite Barako (Liberica)'
+                          : origin === 'benguet'
+                          ? '🌿 Benguet Bourbon'
+                          : '🌋 Bukidnon / Matutum'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             {/* Price Range & Popular Highlights */}
             {shop.priceRange && (
@@ -420,6 +495,9 @@ export const DetailScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* Community Insider Tips Board (Plugs, Parking, Off-Menu) */}
+        <InsiderTipsSection shop={shop} />
 
         {/* Community Tasting Notes & Barista Brew Recipes Section */}
         <TastingNotesSection shop={shop} />
@@ -734,12 +812,103 @@ const styles = StyleSheet.create({
   vibeTextBrown: {
     color: '#FFFFFF',
   },
-  amenitiesContainer: {
+  wfcScorecard: {
     backgroundColor: '#EAF4EE',
     borderRadius: RADIUS.md,
     padding: SPACING.md - 2,
-    gap: 6,
+    gap: 8,
     marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#D0E7D8',
+  },
+  wfcHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(42, 71, 54, 0.12)',
+    paddingBottom: 4,
+  },
+  wfcHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  wfcGrid: {
+    gap: 6,
+  },
+  wfcItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  wfcItemLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  wfcItemValue: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  wfcValueGreen: {
+    color: '#1B5E20',
+    fontWeight: '700',
+  },
+  wfcValueOrange: {
+    color: '#E65100',
+    fontWeight: '700',
+  },
+  wfcValueRed: {
+    color: '#C62828',
+    fontWeight: '700',
+  },
+  originCard: {
+    backgroundColor: '#F3E5F5',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md - 2,
+    gap: 6,
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: '#E1BEE7',
+  },
+  originCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  originCardTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#512DA8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  originCardSub: {
+    fontSize: 11,
+    color: '#5E35B1',
+  },
+  originBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 2,
+  },
+  originBadgePill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#D1C4E9',
+  },
+  originBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4A148C',
   },
   pricingContainer: {
     backgroundColor: COLORS.surfaceSage,

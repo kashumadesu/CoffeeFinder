@@ -73,6 +73,29 @@ export interface OwnerClaimRequest {
   rejectionReason?: string;
 }
 
+export type OutletRating = 'plentiful' | 'wall_only' | 'no_outlets' | 'laptop_ban';
+export type BeanOrigin = 'sagada' | 'apo' | 'benguet' | 'barako' | 'bukidnon' | 'imported';
+export type CafeFormat = 'commercial' | 'garage_popup' | 'mobile_van' | 'roastery';
+export type NoiseLevel = 'quiet_zoom' | 'moderate' | 'social_loud';
+export type AcLevel = 'high_chilly' | 'comfortable' | 'al_fresco_warm';
+
+export interface InsiderTip {
+  id: string;
+  shopId: string;
+  authorName: string;
+  category: 'plugs' | 'parking' | 'off_menu' | 'vibe' | 'ac';
+  text: string;
+  upvotes: number;
+  createdAt: string;
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  query: string;
+  timestamp: number;
+  type?: 'keyword' | 'hotspot' | 'origin';
+}
+
 export interface CoffeeShop {
   id: string;
   name: string;
@@ -105,6 +128,12 @@ export interface CoffeeShop {
   seatingStatus?: LiveSeatingStatus;
   wifiSpeed?: string;
   hasOutlets?: boolean;
+  outletRating?: OutletRating;
+  beanOrigins?: BeanOrigin[];
+  cafeFormat?: CafeFormat;
+  noiseLevel?: NoiseLevel;
+  acLevel?: AcLevel;
+  insiderTips?: InsiderTip[];
   isPetFriendly?: boolean;
   hasAlFresco?: boolean;
   isSpecialty?: boolean;
@@ -123,7 +152,7 @@ export interface HeartbeatEvent {
   id: string;
   shopId: string;
   shopName: string;
-  type: 'navigation' | 'favorite' | 'tasting_note' | 'tip';
+  type: 'navigation' | 'favorite' | 'tasting_note' | 'tip' | 'insider_tip';
   message: string;
   timeAgo: string;
   timestamp: number;
@@ -147,6 +176,12 @@ export type PriceLevel = 0 | 1 | 2 | 3 | 4;
 export type CategoryFilter =
   | 'all'
   | 'outlets'
+  | 'plentiful_plugs'
+  | 'garahe_popup'
+  | 'origin_sagada'
+  | 'origin_apo'
+  | 'origin_barako'
+  | 'origin_benguet'
   | 'specialty'
   | 'alfresco'
   | 'petFriendly'
@@ -164,6 +199,9 @@ export interface Filters {
   minRating: number | null;
   radiusMetres: number;
   gcashOnly: boolean;
+  outletRatingFilter?: OutletRating | 'all';
+  beanOriginFilter?: BeanOrigin | 'all';
+  garageOnly?: boolean;
 }
 
 export const DEFAULT_FILTERS: Filters = {
@@ -174,6 +212,9 @@ export const DEFAULT_FILTERS: Filters = {
   minRating: null,
   radiusMetres: 3500,
   gcashOnly: false,
+  outletRatingFilter: 'all',
+  beanOriginFilter: 'all',
+  garageOnly: false,
 };
 
 // ---- Navigation types ----

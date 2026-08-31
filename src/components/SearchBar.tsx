@@ -1,5 +1,5 @@
 // ============================================================
-// SearchBar — Live Autocomplete Search with Google Suggestions
+// SearchBar — Live Autocomplete Search with Instant History & Hotspots
 // ============================================================
 
 import React, { useRef, useState } from 'react';
@@ -9,10 +9,13 @@ import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
 import { logSearchEvent } from '@services/analytics';
 import { SearchSuggestions } from '@components/SearchSuggestions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Props {
   onAvatarPress?: () => void;
 }
+
+const SEARCH_HISTORY_KEY = '@coffee_finder:search_history_v1';
 
 export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
   const searchQuery = useStore((s) => s.filters.searchQuery);
@@ -24,10 +27,19 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsFocused(false);
     inputRef.current?.blur();
     if (searchQuery.trim()) {
+      try {
+        const stored = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+        const history: string[] = stored ? JSON.parse(stored) : [];
+        const updated = [
+          searchQuery.trim(),
+          ...history.filter((h) => h.toLowerCase() !== searchQuery.trim().toLowerCase()),
+        ].slice(0, 8);
+        await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+      } catch {}
       logSearchEvent(searchQuery, currentRegion, shopsCount);
     }
   };
@@ -44,7 +56,8 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
     inputRef.current?.focus();
   };
 
-  const showSuggestions = isFocused && searchQuery.trim().length >= 2;
+  // Show dropdown immediately upon focusing (for history & trending) or while typing
+  const showSuggestions = isFocused;
 
   return (
     <View style={styles.container}>
@@ -55,7 +68,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
         <TextInput
           ref={inputRef}
           style={styles.input}
-          placeholder="Find WFC friendly, pour-over, neighborhood spots…"
+          placeholder="Search cafés, WFC outlets, Sagada, Barako…"
           placeholderTextColor={COLORS.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -63,7 +76,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             // Small delay so suggestion tap fires before blur hides the list
-            setTimeout(() => setIsFocused(false), 150);
+            setTimeout(() => setIsFocused(false), 200);
           }}
           returnKeyType="search"
           autoCorrect={false}
@@ -78,7 +91,7 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
         )}
       </View>
 
-      {/* Live Autocomplete Suggestions Dropdown */}
+      {/* Live Autocomplete & History Suggestions Dropdown */}
       {showSuggestions && (
         <SearchSuggestions
           query={searchQuery}
@@ -105,7 +118,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     gap: SPACING.sm,
     width: '100%',
-    // Must be position relative so suggestions can overlay absolutely below
     zIndex: 100,
   },
   inputWrapper: {
@@ -125,33 +137,38 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     gap: SPACING.xs ?? 4,
-    // Overflow visible so dropdown can poke outside
     overflow: 'visible',
     zIndex: 100,
   },
   searchIcon: {
-    marginLeft: 4,
+    marginLeft: 2,
   },
   input: {
     flex: 1,
     fontSize: 13.5,
     color: COLORS.textPrimary,
     paddingVertical: 0,
-    fontWeight: '400',
   },
   avatarBtn: {
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  avatarInner: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#EFE7DE',
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  avatarInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceWarm,
     alignItems: 'center',
     justifyContent: 'center',
   },
