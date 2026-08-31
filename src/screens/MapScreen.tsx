@@ -26,7 +26,6 @@ import { useStore } from '@store/useStore';
 import { useLocation } from '@hooks/useLocation';
 import { useFavorites } from '@hooks/useFavorites';
 import { CoffeeMarker } from '@components/CoffeeMarker';
-import { UserLocationMarker } from '@components/UserLocationMarker';
 import { SearchBar } from '@components/SearchBar';
 import { FilterBar } from '@components/FilterBar';
 import { RegionSelector } from '@components/RegionSelector';
@@ -246,12 +245,12 @@ export const MapScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Interactive Map with GPU-Accelerated Directional Heading Cone */}
+      {/* Interactive Map with Hardware-Accelerated Native GPS Location */}
       <MapView
         ref={mapRef}
         style={styles.map}
         initialRegion={DEFAULT_REGION}
-        showsUserLocation={false}
+        showsUserLocation={true}
         showsMyLocationButton={false}
         showsCompass={true}
         minZoomLevel={6}
@@ -260,12 +259,6 @@ export const MapScreen: React.FC = () => {
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
-        {/* GPU-Accelerated Google Maps Directional Heading Cone & Blue Beacon */}
-        {userLocation && (
-          <UserLocationMarker
-            location={userLocation}
-          />
-        )}
 
         {/* Render Road-Following Route Polyline during navigation */}
         {activeNavigationShop && (
