@@ -2,7 +2,7 @@
 // useLocation — GPS Tracking with Graceful Fallback
 // ============================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as ExpoLocation from 'expo-location';
 import { useStore } from '@store/useStore';
 import type { Location } from '@types';
@@ -23,6 +23,10 @@ export function useLocation(): UseLocationReturn {
   });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const lastHeadingRef = useRef<number>(0);
+  const lastHeadingTimeRef = useRef<number>(0);
+  const lastLocRef = useRef<Location | null>(null);
 
   useEffect(() => {
     let positionSub: ExpoLocation.LocationSubscription | null = null;
@@ -51,38 +55,51 @@ export function useLocation(): UseLocationReturn {
             latitude: initial.coords.latitude,
             longitude: initial.coords.longitude,
           };
+          lastLocRef.current = loc;
           setLocation(loc);
           setUserLocation(loc);
           if (initial.coords.heading !== null && initial.coords.heading !== undefined) {
+            lastHeadingRef.current = initial.coords.heading;
             setUserHeading(initial.coords.heading);
           }
           setIsLoading(false);
         }
 
-        // Watch for position updates as user moves
+        // Watch for position updates as user moves (throttled to 5 meters)
         positionSub = await ExpoLocation.watchPositionAsync(
-          { accuracy: ExpoLocation.Accuracy.High, distanceInterval: 5 },
+          { accuracy: ExpoLocation.Accuracy.Balanced, distanceInterval: 8 },
           (pos) => {
             if (isMounted && pos?.coords) {
               const updated: Location = {
                 latitude: pos.coords.latitude,
                 longitude: pos.coords.longitude,
               };
-              setLocation(updated);
-              setUserLocation(updated);
-              if (pos.coords.heading !== null && pos.coords.heading !== undefined && pos.coords.heading >= 0) {
-                setUserHeading(pos.coords.heading);
+              if (
+                !lastLocRef.current ||
+                Math.abs(lastLocRef.current.latitude - updated.latitude) > 0.00005 ||
+                Math.abs(lastLocRef.current.longitude - updated.longitude) > 0.00005
+              ) {
+                lastLocRef.current = updated;
+                setLocation(updated);
+                setUserLocation(updated);
               }
             }
           },
         );
 
-        // Watch for device compass / magnetic heading (rotates the directional cone in real time)
+        // Watch for device compass / magnetic heading with deadband filtering (prevents gyro jitter)
         try {
           headingSub = await ExpoLocation.watchHeadingAsync((headingData) => {
             if (isMounted && headingData) {
               const deg = headingData.trueHeading >= 0 ? headingData.trueHeading : headingData.magHeading;
-              if (deg >= 0) {
+              const now = Date.now();
+              if (
+                deg >= 0 &&
+                Math.abs(deg - lastHeadingRef.current) >= 3.5 &&
+                now - lastHeadingTimeRef.current >= 150
+              ) {
+                lastHeadingRef.current = deg;
+                lastHeadingTimeRef.current = now;
                 setUserHeading(deg);
               }
             }

@@ -60,7 +60,6 @@ export const MapScreen: React.FC = () => {
   const setSelectedShop = useStore((s) => s.setSelectedShop);
   const fetchNearbyShops = useStore((s) => s.fetchNearbyShops);
   const userLocation = useStore((s) => s.userLocation);
-  const userHeading = useStore((s) => s.userHeading);
   const gcashOnly = useStore((s) => s.filters.gcashOnly);
   const toggleGcashOnly = useStore((s) => s.toggleGcashOnly);
   const activeNavigationShop = useStore((s) => s.activeNavigationShop);
@@ -264,7 +263,6 @@ export const MapScreen: React.FC = () => {
         {userLocation && (
           <UserLocationMarker
             location={userLocation}
-            heading={userHeading}
           />
         )}
 

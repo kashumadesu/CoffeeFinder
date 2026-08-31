@@ -3,31 +3,52 @@
 // Real-time compass flashlight beam + pulsating blue GPS beacon
 // ============================================================
 
-import React, { memo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Marker } from 'react-native-maps';
+import { useStore } from '@store/useStore';
 import type { Location } from '@types';
 
 interface Props {
   location: Location;
-  heading?: number;
 }
 
-const UserLocationMarkerComponent: React.FC<Props> = ({ location, heading = 0 }) => {
+const UserLocationMarkerComponent: React.FC<Props> = ({ location }) => {
+  // Subscribe to userHeading inside this marker only — isolates MapScreen from re-renders!
+  const heading = useStore((s) => s.userHeading);
+
+  // Dynamic tracksViewChanges prevents iOS Marker disappearing / blinking glitches
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setTracksViewChanges(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setTracksViewChanges(false);
+    }, 250);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [heading, location.latitude, location.longitude]);
+
+  const rotation = Math.round(heading);
+
   return (
     <Marker
       coordinate={location}
       anchor={{ x: 0.5, y: 0.5 }}
-      flat={true}
-      tracksViewChanges={false}
+      tracksViewChanges={tracksViewChanges}
       zIndex={999}
+      flat={false}
     >
       <View style={styles.container}>
         {/* Directional Flashlight Beam / Heading Cone (Rotates with Compass) */}
         <View
           style={[
             styles.headingConeWrapper,
-            { transform: [{ rotate: `${Math.round(heading)}deg` }] },
+            { transform: [{ rotate: `${rotation}deg` }] },
           ]}
         >
           <View style={styles.headingConeBeam} />
@@ -49,38 +70,37 @@ export const UserLocationMarker = memo(UserLocationMarkerComponent);
 
 const styles = StyleSheet.create({
   container: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headingConeWrapper: {
     position: 'absolute',
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
-  // Flashlight wedge beam pointing upward (0 deg is top)
+  // Flashlight wedge beam pointing upward
   headingConeBeam: {
     width: 0,
     height: 0,
-    borderLeftWidth: 26,
-    borderRightWidth: 26,
-    borderTopWidth: 42,
+    borderLeftWidth: 28,
+    borderRightWidth: 28,
+    borderTopWidth: 46,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: 'rgba(66, 133, 244, 0.35)', // Translucent Google Blue Beam
-    opacity: 0.85,
+    borderTopColor: 'rgba(66, 133, 244, 0.38)', // Translucent Google Blue Beam
   },
   haloRing: {
     position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(66, 133, 244, 0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(66, 133, 244, 0.4)',
+    borderColor: 'rgba(66, 133, 244, 0.45)',
   },
   blueDot: {
     width: 18,
