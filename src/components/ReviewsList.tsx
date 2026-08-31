@@ -56,7 +56,46 @@ export const ReviewsList: React.FC<Props> = ({ reviews, onWriteReviewPress }) =>
                     <Text style={styles.avatarText}>{rev.userName.charAt(0)}</Text>
                   </View>
                   <View>
-                    <Text style={styles.userName}>{rev.userName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.userName}>{rev.userName}</Text>
+                      {rev.reviewerRole && rev.reviewerRole !== 'Coffee Explorer' && (
+                        <View
+                          style={{
+                            backgroundColor:
+                              rev.reviewerRole === 'Licensed Q-Grader'
+                                ? '#FFF8E1'
+                                : rev.reviewerRole === 'Head Roaster'
+                                ? '#EFEBE9'
+                                : '#E8F5E9',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor:
+                              rev.reviewerRole === 'Licensed Q-Grader'
+                                ? '#FFE082'
+                                : rev.reviewerRole === 'Head Roaster'
+                                ? '#D7CCC8'
+                                : '#C8E6C9',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: '800',
+                              color:
+                                rev.reviewerRole === 'Licensed Q-Grader'
+                                  ? '#B78103'
+                                  : rev.reviewerRole === 'Head Roaster'
+                                  ? '#4E342E'
+                                  : '#2E7D32',
+                            }}
+                          >
+                            {rev.reviewerRole}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.dateText}>{rev.createdAt}</Text>
                   </View>
                 </View>

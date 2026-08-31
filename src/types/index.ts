@@ -281,12 +281,19 @@ export type TastingFlavorTag =
   | 'Nutty & Cacao'
   | 'Smoky Barako';
 
+export type ReviewerRole =
+  | 'Coffee Explorer'
+  | 'Licensed Q-Grader'
+  | 'Head Roaster'
+  | 'Professional Barista';
+
 export interface CommunityReview {
   id: string;
   shopId: string;
   userId: string;
   userName: string;
   userAvatar?: string;
+  reviewerRole?: ReviewerRole;
   rating: number; // 1 to 5
   brewMethod: BrewMethod;
   beanOriginTag?: BeanOrigin;
@@ -299,6 +306,22 @@ export interface CommunityReview {
   helpfulCount: number;
   isHelpfulByMe?: boolean;
   createdAt: string;
+}
+
+export interface TableAlert {
+  shopId: string;
+  shopName: string;
+  requestedAt: number;
+}
+
+export interface PassportCheckIn {
+  id: string;
+  shopId: string;
+  shopName: string;
+  region: string;
+  island: 'Luzon' | 'Visayas' | 'Mindanao';
+  timestamp: number;
+  dateFormatted: string;
 }
 
 export type GrindType =

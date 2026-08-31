@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS, SPACING, RADIUS } from '@constants';
 import { useStore } from '@store/useStore';
-import type { BrewMethod, TastingFlavorTag, BeanOrigin } from '@types';
+import type { BrewMethod, TastingFlavorTag, BeanOrigin, ReviewerRole } from '@types';
 import { hapticSuccess, hapticSelection } from '@utils/haptics';
 import { logReviewSubmitted } from '@services/analytics';
 
@@ -29,6 +29,13 @@ interface Props {
   shopName: string;
   onClose: () => void;
 }
+
+const ROLES: { id: ReviewerRole; label: string; icon: string }[] = [
+  { id: 'Coffee Explorer', label: 'Coffee Explorer', icon: 'compass' },
+  { id: 'Licensed Q-Grader', label: '🎖️ Licensed Q-Grader', icon: 'award' },
+  { id: 'Head Roaster', label: '☕ Head Roaster', icon: 'sun' },
+  { id: 'Professional Barista', label: '🌱 Pro Barista', icon: 'feather' },
+];
 
 const BREW_METHODS: BrewMethod[] = [
   'V60 Pour Over',
@@ -62,6 +69,7 @@ export const ReviewComposerModal: React.FC<Props> = ({
   const currentUser = useStore((s) => s.currentUser);
 
   const [rating, setRating] = useState(5);
+  const [reviewerRole, setReviewerRole] = useState<ReviewerRole>('Coffee Explorer');
   const [brewMethod, setBrewMethod] = useState<BrewMethod>('V60 Pour Over');
   const [selectedTags, setSelectedTags] = useState<TastingFlavorTag[]>(['Floral', 'Brown Sugar']);
   const [beanOrigin, setBeanOrigin] = useState<BeanOrigin | undefined>(undefined);
@@ -109,9 +117,10 @@ export const ReviewComposerModal: React.FC<Props> = ({
 
     await submitReview({
       shopId,
-      userId: currentUser?.uid || `user-${Date.now()}`,
-      userName: currentUser?.displayName || 'Specialty Coffee Explorer',
-      userAvatar: currentUser?.photoURL || undefined,
+      userId: currentUser?.uid ?? 'guest-cupper',
+      userName: currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? 'Specialty Cupper',
+      userAvatar: currentUser?.photoURL ?? undefined,
+      reviewerRole,
       rating,
       brewMethod,
       beanOriginTag: beanOrigin,
@@ -170,6 +179,25 @@ export const ReviewComposerModal: React.FC<Props> = ({
               ))}
               <Text style={styles.ratingText}>{rating}.0 / 5.0</Text>
             </View>
+
+            {/* Reviewer Distinction Badge Selector */}
+            <Text style={styles.sectionLabel}>Cupper Credential / Role</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+              {ROLES.map((role) => (
+                <TouchableOpacity
+                  key={role.id}
+                  style={[styles.chip, reviewerRole === role.id && styles.chipActive]}
+                  onPress={() => {
+                    hapticSelection();
+                    setReviewerRole(role.id);
+                  }}
+                >
+                  <Text style={[styles.chipText, reviewerRole === role.id && styles.chipTextActive]}>
+                    {role.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             {/* Brew Method */}
             <Text style={styles.sectionLabel}>Brew Extraction Method</Text>

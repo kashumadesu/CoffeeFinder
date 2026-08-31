@@ -23,7 +23,8 @@ import {
 } from '@services/firebase';
 import { promptGoogleSignIn } from '@services/googleAuth';
 import { promptFacebookSignIn } from '@services/facebookAuth';
-import { hapticSuccess, hapticMedium, hapticWarning } from '@utils/haptics';
+import { hapticSuccess, hapticMedium, hapticWarning, hapticLight } from '@utils/haptics';
+import { QRScannerModal } from '@components/QRScannerModal';
 
 const ADMIN_EMAILS = [
   'michaelapril81416@gmail.com',
@@ -54,6 +55,8 @@ export const ProfileScreen: React.FC = () => {
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
   const myRsvps = useStore((s) => s.myRsvps);
   const reviews = useStore((s) => s.reviews);
+  const passportCheckIns = useStore((s) => s.passportCheckIns);
+  const [qrScannerVisible, setQrScannerVisible] = useState(false);
 
   // Administrator & Moderation Console State
   const isWhitelisted = !!(
@@ -390,10 +393,32 @@ export const ProfileScreen: React.FC = () => {
               <Feather name="award" size={16} color={COLORS.primary} />
               <Text style={styles.cardTitle}>Philippine Coffee Passport</Text>
             </View>
-            <Text style={styles.cardSubCount}>3 / 5 Unlocked</Text>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                backgroundColor: '#E8F5E9',
+                paddingHorizontal: 9,
+                paddingVertical: 5,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: '#C8E6C9',
+              }}
+              onPress={() => {
+                hapticLight();
+                setQrScannerVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Feather name="maximize" size={12} color="#1B5E20" />
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#1B5E20' }}>
+                Scan Counter QR
+              </Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.passportDesc}>
-            Earn digital stamps by checking in and reviewing specialty cafés across regions:
+            Earn digital stamps by scanning the counter QR at partner specialty cafés:
           </Text>
 
           <View style={styles.stampsGrid}>
@@ -427,6 +452,37 @@ export const ProfileScreen: React.FC = () => {
               </View>
             ))}
           </View>
+
+          {/* Recent Counter Check-ins */}
+          {passportCheckIns.length > 0 && (
+            <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: COLORS.borderLight, paddingTop: 10, gap: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase' }}>
+                Recent Counter Check-in Passes
+              </Text>
+              {passportCheckIns.slice(0, 3).map((ci) => (
+                <View
+                  key={ci.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: COLORS.background,
+                    paddingHorizontal: 10,
+                    paddingVertical: 7,
+                    borderRadius: RADIUS.sm,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <Feather name="check-circle" size={13} color="#1B5E20" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.textPrimary }} numberOfLines={1}>
+                      {ci.shopName}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 10.5, color: COLORS.textSecondary }}>{ci.dateFormatted}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Explorer Badges */}
@@ -873,6 +929,12 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Countertop QR Passport Scanner Modal */}
+      <QRScannerModal
+        visible={qrScannerVisible}
+        onClose={() => setQrScannerVisible(false)}
+      />
 
       {/* Social Login / Firebase Auth Modal */}
       <Modal

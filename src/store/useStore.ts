@@ -22,6 +22,8 @@ import type {
   CoffeeEvent,
   EventRSVP,
   GrindType,
+  TableAlert,
+  PassportCheckIn,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
@@ -50,6 +52,8 @@ const TREK_PACKS_KEY = '@coffee_finder:trek_packs_v1';
 const REVIEWS_KEY = '@coffee_finder:reviews_v2';
 const CART_KEY = '@coffee_finder:cart_v2';
 const RSVPS_KEY = '@coffee_finder:rsvps_v2';
+const TABLE_ALERTS_KEY = '@coffee_finder:table_alerts_v1';
+const PASSPORT_CHECKINS_KEY = '@coffee_finder:passport_checkins_v1';
 
 interface AppState {
   // ---- location & regional hubs ----
@@ -162,6 +166,21 @@ interface AppState {
   loadEvents: () => Promise<void>;
   rsvpEvent: (eventId: string) => void;
   cancelRSVP: (eventId: string) => void;
+
+  // ---- Phase 3: Table Alerts & Passport Counter QR Check-ins ----
+  tableAlerts: TableAlert[];
+  loadTableAlerts: () => Promise<void>;
+  toggleTableAlert: (shopId: string, shopName: string) => boolean;
+  isTableAlertActive: (shopId: string) => boolean;
+
+  passportCheckIns: PassportCheckIn[];
+  loadPassportCheckIns: () => Promise<void>;
+  addPassportCheckIn: (
+    shopId: string,
+    shopName: string,
+    region: string,
+    island: 'Luzon' | 'Visayas' | 'Mindanao',
+  ) => boolean;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -1032,5 +1051,92 @@ export const useStore = create<AppState>((set, get) => ({
       AsyncStorage.setItem(RSVPS_KEY, JSON.stringify(updatedRsvps));
     } catch {}
   },
+
+  // ---- Phase 3: Table Alerts & Passport Check-ins ----
+  tableAlerts: [],
+
+  loadTableAlerts: async () => {
+    try {
+      const stored = await AsyncStorage.getItem(TABLE_ALERTS_KEY);
+      if (stored) {
+        set({ tableAlerts: JSON.parse(stored) });
+      }
+    } catch {}
+  },
+
+  toggleTableAlert: (shopId, shopName) => {
+    const isExisting = get().tableAlerts.some((a) => a.shopId === shopId);
+    let updated: TableAlert[];
+    let isNowActive = false;
+
+    if (isExisting) {
+      updated = get().tableAlerts.filter((a) => a.shopId !== shopId);
+      isNowActive = false;
+    } else {
+      updated = [{ shopId, shopName, requestedAt: Date.now() }, ...get().tableAlerts];
+      isNowActive = true;
+    }
+
+    set({ tableAlerts: updated });
+    try {
+      AsyncStorage.setItem(TABLE_ALERTS_KEY, JSON.stringify(updated));
+    } catch {}
+    return isNowActive;
+  },
+
+  isTableAlertActive: (shopId) => {
+    return get().tableAlerts.some((a) => a.shopId === shopId);
+  },
+
+  passportCheckIns: [
+    {
+      id: 'checkin-1',
+      shopId: 'ph-chapter-coffee',
+      shopName: 'Chapter Coffee Roasters',
+      region: 'Metro Manila',
+      island: 'Luzon',
+      timestamp: Date.now() - 86400000 * 2,
+      dateFormatted: '2 days ago',
+    },
+    {
+      id: 'checkin-2',
+      shopId: 'ph-sagada-brew',
+      shopName: 'Sagada Brew Heritage House',
+      region: 'Sagada & Benguet',
+      island: 'Luzon',
+      timestamp: Date.now() - 86400000 * 6,
+      dateFormatted: '6 days ago',
+    },
+  ],
+
+  loadPassportCheckIns: async () => {
+    try {
+      const stored = await AsyncStorage.getItem(PASSPORT_CHECKINS_KEY);
+      if (stored) {
+        set({ passportCheckIns: JSON.parse(stored) });
+      }
+    } catch {}
+  },
+
+  addPassportCheckIn: (shopId, shopName, region, island) => {
+    const isAlreadyCheckedIn = get().passportCheckIns.some((c) => c.shopId === shopId);
+    const newCheckIn: PassportCheckIn = {
+      id: `checkin-${Date.now()}`,
+      shopId,
+      shopName,
+      region,
+      island,
+      timestamp: Date.now(),
+      dateFormatted: 'Just now',
+    };
+
+    const updated = [newCheckIn, ...get().passportCheckIns];
+    set({ passportCheckIns: updated });
+    try {
+      AsyncStorage.setItem(PASSPORT_CHECKINS_KEY, JSON.stringify(updated));
+    } catch {}
+    return !isAlreadyCheckedIn; // returns true if new stamp unlocked
+  },
 }));
+
 

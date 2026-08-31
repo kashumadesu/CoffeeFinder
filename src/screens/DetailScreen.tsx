@@ -67,6 +67,8 @@ export const DetailScreen: React.FC = () => {
 
   const { toggleFavorite, isFavorite } = useFavorites();
   const startNavigation = useStore((s) => s.startNavigation);
+  const toggleTableAlert = useStore((s) => s.toggleTableAlert);
+  const isTableAlertActive = useStore((s) => s.isTableAlertActive);
   const favorited = isFavorite(shop.id);
 
   const handleSendGcashTip = async () => {
@@ -359,6 +361,73 @@ export const DetailScreen: React.FC = () => {
                   </Text>
                 </View>
               </View>
+            </View>
+
+            {/* Live Seating Table Availability & Alert Watcher */}
+            <View style={styles.seatingAlertBanner}>
+              <View style={styles.seatingAlertLeft}>
+                <View
+                  style={[
+                    styles.seatingStatusDot,
+                    {
+                      backgroundColor:
+                        shop.seatingStatus === 'available'
+                          ? COLORS.success
+                          : shop.seatingStatus === 'full'
+                          ? COLORS.danger
+                          : COLORS.warning,
+                    },
+                  ]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.seatingAlertTitle}>
+                    {shop.seatingStatus === 'available'
+                      ? 'Live Tables: Available'
+                      : shop.seatingStatus === 'full'
+                      ? 'Live Tables: Busy / Few Left'
+                      : 'Live Tables: Moderate (~50% full)'}
+                  </Text>
+                  <Text style={styles.seatingAlertSub}>
+                    {shop.seatingStatus === 'available'
+                      ? 'Plenty of seating and power outlets open now.'
+                      : 'Popular work hours. Get alerted when a table frees up.'}
+                  </Text>
+                </View>
+              </View>
+
+              {shop.seatingStatus !== 'available' && (
+                <TouchableOpacity
+                  style={[
+                    styles.alertBellBtn,
+                    isTableAlertActive(shop.id) && styles.alertBellBtnActive,
+                  ]}
+                  onPress={() => {
+                    hapticSelection();
+                    const nowActive = toggleTableAlert(shop.id, shop.name);
+                    Alert.alert(
+                      nowActive ? 'Table Watcher Active 🔔' : 'Alert Cancelled',
+                      nowActive
+                        ? `We will send you an alert as soon as tables open up at ${shop.name}.`
+                        : `Table notification removed for ${shop.name}.`,
+                    );
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Feather
+                    name={isTableAlertActive(shop.id) ? 'bell-off' : 'bell'}
+                    size={12}
+                    color={isTableAlertActive(shop.id) ? '#FFFFFF' : COLORS.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.alertBellText,
+                      isTableAlertActive(shop.id) && styles.alertBellTextActive,
+                    ]}
+                  >
+                    {isTableAlertActive(shop.id) ? 'Watching' : 'Alert Me'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Philippine Single-Origin Heritage Bean Card */}
@@ -1497,5 +1566,64 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  seatingAlertBanner: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  seatingAlertLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seatingStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  seatingAlertTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  seatingAlertSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  alertBellBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EFF5F1',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  alertBellBtnActive: {
+    backgroundColor: COLORS.primary,
+  },
+  alertBellText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  alertBellTextActive: {
+    color: '#FFFFFF',
   },
 });
