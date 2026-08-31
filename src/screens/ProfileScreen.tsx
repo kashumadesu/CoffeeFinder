@@ -56,7 +56,13 @@ export const ProfileScreen: React.FC = () => {
   const myRsvps = useStore((s) => s.myRsvps);
   const reviews = useStore((s) => s.reviews);
   const passportCheckIns = useStore((s) => s.passportCheckIns);
+  const visitedShops = useStore((s) => s.visitedShops);
+  const getRegionalRanks = useStore((s) => s.getRegionalRanks);
+  const getNationalRank = useStore((s) => s.getNationalRank);
   const [qrScannerVisible, setQrScannerVisible] = useState(false);
+
+  const nationalRank = getNationalRank();
+  const regionalRanks = getRegionalRanks();
 
   // Administrator & Moderation Console State
   const isWhitelisted = !!(
@@ -373,8 +379,8 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.statLabel}>Saved Cafés</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{stamps.filter((s) => s.unlocked).length}</Text>
-            <Text style={styles.statLabel}>Stamps</Text>
+            <Text style={styles.statNumber}>{visitedShops.length}</Text>
+            <Text style={styles.statLabel}>Visited</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{reviews.length}</Text>
@@ -383,6 +389,198 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{myRsvps.length}</Text>
             <Text style={styles.statLabel}>Events</Text>
+          </View>
+        </View>
+
+        {/* National Coffee Explorer Level Banner */}
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderRadius: RADIUS.lg,
+            padding: SPACING.md,
+            borderWidth: 1.5,
+            borderColor: COLORS.surfaceSage,
+            gap: 10,
+            shadowColor: '#000',
+            shadowOpacity: 0.06,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 3 },
+            elevation: 2,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: '#FFF8E1',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: '#FFE082',
+                }}
+              >
+                <Feather name="award" size={20} color="#B78103" />
+              </View>
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: COLORS.textPrimary }}>
+                  Level {nationalRank.level} • {nationalRank.rankTitle}
+                </Text>
+                <Text style={{ fontSize: 11, color: COLORS.textSecondary, marginTop: 1 }}>
+                  {nationalRank.badgeName}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={{
+                backgroundColor: '#EFF5F1',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: COLORS.primary,
+              }}
+            >
+              <Text style={{ fontSize: 10.5, fontWeight: '800', color: COLORS.primary }}>
+                {nationalRank.totalVisited} / {nationalRank.nextLevelTotal} Spots
+              </Text>
+            </View>
+          </View>
+
+          {/* XP Progress Bar */}
+          <View style={{ gap: 4 }}>
+            <View
+              style={{
+                height: 7,
+                backgroundColor: COLORS.borderLight,
+                borderRadius: 3.5,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${Math.round(nationalRank.progress * 100)}%`,
+                  height: '100%',
+                  backgroundColor: COLORS.primary,
+                  borderRadius: 3.5,
+                }}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>
+                Rank Progress ({Math.round(nationalRank.progress * 100)}%)
+              </Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: COLORS.primary }}>
+                {nationalRank.level >= 4
+                  ? 'Max Rank Achieved 👑'
+                  : `${nationalRank.nextLevelTotal - nationalRank.totalVisited} more spots to Level ${nationalRank.level + 1}`}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Regional & City Ranks Progression Grid */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderLeft}>
+              <Feather name="map-pin" size={16} color={COLORS.primary} />
+              <Text style={styles.cardTitle}>Regional & City Explorer Ranks</Text>
+            </View>
+            <Text style={styles.cardSubCount}>
+              {regionalRanks.filter((r) => r.level > 0).length} / {regionalRanks.length} Active
+            </Text>
+          </View>
+          <Text style={styles.passportDesc}>
+            Log visits in each Philippine coffee hub to level up your regional badges:
+          </Text>
+
+          <View style={{ gap: 8, marginTop: 4 }}>
+            {regionalRanks.map((r) => {
+              const hasRank = r.level > 0;
+              return (
+                <View
+                  key={r.regionId}
+                  style={{
+                    backgroundColor: hasRank ? '#F9FAF9' : COLORS.background,
+                    borderRadius: RADIUS.md,
+                    padding: 10,
+                    borderWidth: 1,
+                    borderColor: hasRank ? '#C8E6C9' : COLORS.borderLight,
+                    gap: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: hasRank ? '#E8F5E9' : '#ECEFF1',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Feather
+                          name={hasRank ? (r.badgeIcon as any) : 'lock'}
+                          size={13}
+                          color={hasRank ? '#1B5E20' : COLORS.textMuted}
+                        />
+                      </View>
+                      <View>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.textPrimary }}>
+                          {r.regionName}
+                        </Text>
+                        <Text style={{ fontSize: 10.5, color: COLORS.textSecondary }}>
+                          {r.island} • {r.rankTitle}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={{
+                        backgroundColor: hasRank ? '#E8F5E9' : '#ECEFF1',
+                        paddingHorizontal: 7,
+                        paddingVertical: 3,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: '800',
+                          color: hasRank ? '#1B5E20' : COLORS.textMuted,
+                        }}
+                      >
+                        {r.visitedCount} {r.visitedCount === 1 ? 'spot' : 'spots'} visited
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Mini Progress Bar */}
+                  <View
+                    style={{
+                      height: 4,
+                      backgroundColor: COLORS.borderLight,
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${Math.round(r.progress * 100)}%`,
+                        height: '100%',
+                        backgroundColor: hasRank ? '#2E7D32' : COLORS.textMuted,
+                        borderRadius: 2,
+                      }}
+                    />
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 

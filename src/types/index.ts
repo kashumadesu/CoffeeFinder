@@ -314,6 +314,36 @@ export interface TableAlert {
   requestedAt: number;
 }
 
+export interface VisitedShop {
+  shopId: string;
+  shopName: string;
+  regionId: string;
+  city: string;
+  visitedAt: number;
+}
+
+export interface RegionRankInfo {
+  regionId: string;
+  regionName: string;
+  island: 'Luzon' | 'Visayas' | 'Mindanao';
+  level: number; // 0 to 4
+  rankTitle: string;
+  badgeIcon: string;
+  visitedCount: number;
+  nextTierCount: number;
+  progress: number; // 0 to 1
+  isMaxRank: boolean;
+}
+
+export interface NationalRankInfo {
+  level: number;
+  rankTitle: string;
+  totalVisited: number;
+  nextLevelTotal: number;
+  progress: number;
+  badgeName: string;
+}
+
 export interface PassportCheckIn {
   id: string;
   shopId: string;

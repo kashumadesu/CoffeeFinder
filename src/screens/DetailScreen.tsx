@@ -69,7 +69,10 @@ export const DetailScreen: React.FC = () => {
   const startNavigation = useStore((s) => s.startNavigation);
   const toggleTableAlert = useStore((s) => s.toggleTableAlert);
   const isTableAlertActive = useStore((s) => s.isTableAlertActive);
+  const toggleShopVisited = useStore((s) => s.toggleShopVisited);
+  const isShopVisited = useStore((s) => s.isShopVisited);
   const favorited = isFavorite(shop.id);
+  const isVisited = isShopVisited(shop.id);
 
   const handleSendGcashTip = async () => {
     logBaristaTipEvent(shop.id, shop.name, selectedTipAmount);
@@ -204,6 +207,31 @@ export const DetailScreen: React.FC = () => {
               </View>
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={[
+              styles.headerActionBtn,
+              isVisited && { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' },
+            ]}
+            onPress={() => {
+              const nowVisited = toggleShopVisited(shop.id, shop.name, 'manila', shop.vicinity ?? 'Metro Manila');
+              if (nowVisited) {
+                hapticSuccess();
+                Alert.alert(
+                  'Visit Logged! 🏆',
+                  `"${shop.name}" has been logged to your Regional Coffee Passport. Your City Explorer XP has increased!`,
+                );
+              } else {
+                hapticLight();
+              }
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather
+              name="check-circle"
+              size={18}
+              color={isVisited ? '#1B5E20' : COLORS.textPrimary}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerActionBtn}
             onPress={handleShareShop}

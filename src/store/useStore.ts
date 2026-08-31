@@ -24,6 +24,9 @@ import type {
   GrindType,
   TableAlert,
   PassportCheckIn,
+  VisitedShop,
+  RegionRankInfo,
+  NationalRankInfo,
 } from '@types';
 import { DEFAULT_FILTERS } from '@types';
 import { searchNearbyCoffee } from '@services/googlePlaces';
@@ -54,6 +57,7 @@ const CART_KEY = '@coffee_finder:cart_v2';
 const RSVPS_KEY = '@coffee_finder:rsvps_v2';
 const TABLE_ALERTS_KEY = '@coffee_finder:table_alerts_v1';
 const PASSPORT_CHECKINS_KEY = '@coffee_finder:passport_checkins_v1';
+const VISITED_SHOPS_KEY = '@coffee_finder:visited_shops_v1';
 
 interface AppState {
   // ---- location & regional hubs ----
@@ -181,6 +185,19 @@ interface AppState {
     region: string,
     island: 'Luzon' | 'Visayas' | 'Mindanao',
   ) => boolean;
+
+  // ---- Regional & City Coffee Explorer Rank Progression ----
+  visitedShops: VisitedShop[];
+  loadVisitedShops: () => Promise<void>;
+  toggleShopVisited: (
+    shopId: string,
+    shopName: string,
+    regionId?: string,
+    city?: string,
+  ) => boolean;
+  isShopVisited: (shopId: string) => boolean;
+  getRegionalRanks: () => RegionRankInfo[];
+  getNationalRank: () => NationalRankInfo;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -1137,6 +1154,175 @@ export const useStore = create<AppState>((set, get) => ({
     } catch {}
     return !isAlreadyCheckedIn; // returns true if new stamp unlocked
   },
+
+  // ---- Regional & City Coffee Explorer Rank Progression ----
+  visitedShops: [
+    {
+      shopId: 'ph-chapter-coffee',
+      shopName: 'Chapter Coffee Roasters',
+      regionId: 'manila',
+      city: 'Quezon City',
+      visitedAt: Date.now() - 86400000 * 2,
+    },
+    {
+      shopId: 'ph-yardstick-coffee',
+      shopName: 'Yardstick Coffee',
+      regionId: 'manila',
+      city: 'Makati',
+      visitedAt: Date.now() - 86400000 * 5,
+    },
+    {
+      shopId: 'ph-sagada-brew',
+      shopName: 'Sagada Brew Heritage House',
+      regionId: 'sagada',
+      city: 'Sagada',
+      visitedAt: Date.now() - 86400000 * 10,
+    },
+  ],
+
+  loadVisitedShops: async () => {
+    try {
+      const stored = await AsyncStorage.getItem(VISITED_SHOPS_KEY);
+      if (stored) {
+        set({ visitedShops: JSON.parse(stored) });
+      }
+    } catch {}
+  },
+
+  toggleShopVisited: (shopId, shopName, regionId = 'manila', city = 'Metro Manila') => {
+    const isAlready = get().visitedShops.some((v) => v.shopId === shopId);
+    let updated: VisitedShop[];
+    let isNowVisited = false;
+
+    if (isAlready) {
+      updated = get().visitedShops.filter((v) => v.shopId !== shopId);
+      isNowVisited = false;
+    } else {
+      updated = [
+        {
+          shopId,
+          shopName,
+          regionId,
+          city,
+          visitedAt: Date.now(),
+        },
+        ...get().visitedShops,
+      ];
+      isNowVisited = true;
+    }
+
+    set({ visitedShops: updated });
+    try {
+      AsyncStorage.setItem(VISITED_SHOPS_KEY, JSON.stringify(updated));
+    } catch {}
+    return isNowVisited;
+  },
+
+  isShopVisited: (shopId) => {
+    return get().visitedShops.some((v) => v.shopId === shopId);
+  },
+
+  getRegionalRanks: () => {
+    const visited = get().visitedShops;
+    return REGION_HUBS.map((hub) => {
+      // Find visited shops matching this hub by regionId or name keywords
+      const count = visited.filter(
+        (v) =>
+          v.regionId === hub.id ||
+          v.shopName.toLowerCase().includes(hub.name.toLowerCase().split(' ')[0]) ||
+          hub.name.toLowerCase().includes(v.city.toLowerCase()),
+      ).length;
+
+      let level = 0;
+      let rankTitle = 'Unexplored Territory';
+      let badgeIcon = 'compass';
+      let nextTierCount = 1;
+      let isMaxRank = false;
+
+      if (count >= 10) {
+        level = 4;
+        rankTitle = 'Roastmaster Legend';
+        badgeIcon = 'award';
+        nextTierCount = 10;
+        isMaxRank = true;
+      } else if (count >= 5) {
+        level = 3;
+        rankTitle = 'City Trailblazer';
+        badgeIcon = 'award';
+        nextTierCount = 10;
+      } else if (count >= 3) {
+        level = 2;
+        rankTitle = 'Silver Regular';
+        badgeIcon = 'shield';
+        nextTierCount = 5;
+      } else if (count >= 1) {
+        level = 1;
+        rankTitle = 'Bronze Cupper';
+        badgeIcon = 'coffee';
+        nextTierCount = 3;
+      }
+
+      const progress = isMaxRank ? 1 : Math.min(1, count / nextTierCount);
+
+      return {
+        regionId: hub.id,
+        regionName: hub.name,
+        island: (hub.id === 'cebu' || hub.id === 'iloilo'
+          ? 'Visayas'
+          : hub.id === 'davao'
+          ? 'Mindanao'
+          : 'Luzon') as 'Luzon' | 'Visayas' | 'Mindanao',
+        level,
+        rankTitle,
+        badgeIcon,
+        visitedCount: count,
+        nextTierCount,
+        progress,
+        isMaxRank,
+      };
+    });
+  },
+
+  getNationalRank: () => {
+    const total = get().visitedShops.length;
+    if (total >= 20) {
+      return {
+        level: 4,
+        rankTitle: 'Philippine Coffee Legend',
+        totalVisited: total,
+        nextLevelTotal: 20,
+        progress: 1,
+        badgeName: '👑 Grand Master Cupper',
+      };
+    } else if (total >= 10) {
+      return {
+        level: 3,
+        rankTitle: 'Specialty Connoisseur',
+        totalVisited: total,
+        nextLevelTotal: 20,
+        progress: total / 20,
+        badgeName: '🥇 Island Hopping Connoisseur',
+      };
+    } else if (total >= 5) {
+      return {
+        level: 2,
+        rankTitle: 'Caffeine Scout',
+        totalVisited: total,
+        nextLevelTotal: 10,
+        progress: total / 10,
+        badgeName: '🥈 Regional Roastery Scout',
+      };
+    }
+    return {
+      level: 1,
+      rankTitle: 'Coffee Novice',
+      totalVisited: total,
+      nextLevelTotal: 5,
+      progress: Math.min(1, total / 5),
+      badgeName: '🥉 First Pour Explorer',
+    };
+  },
 }));
+
 
 
