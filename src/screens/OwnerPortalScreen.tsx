@@ -92,7 +92,7 @@ const ADMIN_EMAILS = [
   'admin@coffeefinder.ph',
   'kashumadesu@gmail.com',
 ];
-const ADMIN_MASTER_PIN = '814160';
+const ADMIN_MASTER_PIN = '102403';
 
 export const OwnerPortalScreen: React.FC = () => {
   const shops = useStore((s) => s.shops);
@@ -325,16 +325,16 @@ export const OwnerPortalScreen: React.FC = () => {
   };
 
   const handleVerifyAdminPin = () => {
-    if (enteredPin.trim() === ADMIN_MASTER_PIN || enteredPin.trim() === 'admin') {
+    if (enteredPin.trim() === ADMIN_MASTER_PIN) {
       hapticSuccess();
       setIsAdminUnlocked(true);
       setActivePortalTab('admin');
       setAdminPinModalVisible(false);
       setEnteredPin('');
-      Alert.alert('Admin Access Granted', 'Welcome Administrator. The Verification Queue is now unlocked.');
+      Alert.alert('Admin Access Granted', 'Verification Queue is now unlocked.');
     } else {
       hapticWarning();
-      Alert.alert('Invalid Passcode', 'The Master PIN you entered is incorrect. (Default: 814160)');
+      Alert.alert('Access Denied', 'The security PIN you entered is incorrect.');
     }
   };
 
@@ -851,7 +851,7 @@ export const OwnerPortalScreen: React.FC = () => {
               >
                 <Feather name="shield" size={13} color={COLORS.textMuted} />
                 <Text style={styles.adminUnlockLinkText}>
-                  App Administrator? Tap to Enter Master Security PIN
+                  App Administrator Access
                 </Text>
               </TouchableOpacity>
             )}
@@ -1298,7 +1298,7 @@ export const OwnerPortalScreen: React.FC = () => {
 
             <TextInput
               style={styles.adminPinInput}
-              placeholder="Enter PIN (e.g. 814160)"
+              placeholder="••••••"
               placeholderTextColor={COLORS.textMuted}
               value={enteredPin}
               onChangeText={setEnteredPin}
@@ -1330,7 +1330,7 @@ export const OwnerPortalScreen: React.FC = () => {
             </View>
 
             <Text style={styles.adminPinHelper}>
-              Default Master Key: <Text style={{ fontWeight: '800', color: COLORS.primary }}>814160</Text> (or log in with michaelapril81416@gmail.com)
+              Confidential • Authorized administrator credentials only
             </Text>
           </View>
         </View>

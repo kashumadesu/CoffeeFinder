@@ -65,11 +65,11 @@
       
       <div class="space-y-4 text-left">
         <div>
-          <label class="block text-xs font-bold text-stone-600 uppercase mb-1">Admin Passcode / PIN</label>
+          <label class="block text-xs font-bold text-stone-600 uppercase mb-1 tracking-wider">Admin Security Passcode</label>
           <input 
             type="password" 
             id="adminPinInput" 
-            placeholder="Enter Master PIN (e.g. 814160)" 
+            placeholder="••••••" 
             class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-center text-lg tracking-widest bg-stone-50"
             maxlength="8"
           />
@@ -293,7 +293,7 @@
        CORE JAVASCRIPT & DATA CONTROLLER
        ============================================================ -->
   <script>
-    const ADMIN_MASTER_PIN = '814160';
+    const ADMIN_MASTER_PIN = '102403';
 
     // Mock initial claims state (synced to localStorage)
     let claimsData = JSON.parse(localStorage.getItem('kape_admin_claims')) || [
@@ -354,12 +354,12 @@
     // Auth Controller
     function handleAdminLogin() {
       const pin = document.getElementById('adminPinInput').value.trim();
-      if (pin === ADMIN_MASTER_PIN || pin === 'admin' || pin === '814160') {
+      if (pin === ADMIN_MASTER_PIN) {
         document.getElementById('loginSection').classList.add('hidden');
         sessionStorage.setItem('kape_admin_authenticated', 'true');
         refreshData();
       } else {
-        alert('Invalid Admin Security PIN. Please enter the correct Master PIN (814160).');
+        alert('Invalid Security Passcode. Access denied.');
       }
     }
 
