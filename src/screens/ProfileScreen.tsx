@@ -52,14 +52,12 @@ export const ProfileScreen: React.FC = () => {
   const currentUser = useStore((s) => s.currentUser);
   const setCurrentUser = useStore((s) => s.setCurrentUser);
 
-  // Shop & Claims Global Store Hooks
-  const shops = useStore((s) => s.shops);
+  // Claims & Verification Global Store Hooks
   const claimRequests = useStore((s) => s.claimRequests);
   const approveClaim = useStore((s) => s.approveClaim);
   const rejectClaim = useStore((s) => s.rejectClaim);
-  const adminUpdateShop = useStore((s) => s.adminUpdateShop);
-  const adminDeleteShop = useStore((s) => s.adminDeleteShop);
-  const adminToggleShopVerified = useStore((s) => s.adminToggleShopVerified);
+  const deleteClaim = useStore((s) => s.deleteClaim);
+  const revokeClaim = useStore((s) => s.revokeClaim);
   const verifiedOwnerShopIds = useStore((s) => s.verifiedOwnerShopIds);
 
   // Administrator & Moderation Console State
@@ -71,21 +69,11 @@ export const ProfileScreen: React.FC = () => {
   const [enteredPin, setEnteredPin] = useState('');
   const hasAdminAccess = isWhitelisted || isAdminUnlocked;
 
-  const [activeAdminTab, setActiveAdminTab] = useState<'claims' | 'cafes'>('claims');
-  const [adminSearchQuery, setAdminSearchQuery] = useState('');
-  const [adminFilterCat, setAdminFilterCat] = useState<'all' | 'verified' | 'plugs' | 'origin'>('all');
-
-  // Edit Shop Modal State
-  const [editShopModalVisible, setEditShopModalVisible] = useState(false);
-  const [editingShop, setEditingShop] = useState<CoffeeShop | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCity, setEditCity] = useState('');
-  const [editVicinity, setEditVicinity] = useState('');
-  const [editOutlets, setEditOutlets] = useState<OutletRating>('plentiful');
-  const [editSeating, setEditSeating] = useState<LiveSeatingStatus>('available');
-  const [editWifiSpeed, setEditWifiSpeed] = useState('');
-  const [editBeanOrigin, setEditBeanOrigin] = useState<BeanOrigin | undefined>(undefined);
-  const [editGcash, setEditGcash] = useState(true);
+  // Permit Claims Filter & Search
+  const [claimSearchQuery, setClaimSearchQuery] = useState('');
+  const [claimFilterStatus, setClaimFilterStatus] = useState<
+    'all' | 'pending' | 'verified' | 'rejected'
+  >('all');
 
   // Document Inspection Modal State
   const [previewDocUri, setPreviewDocUri] = useState<string | null>(null);
@@ -265,93 +253,71 @@ export const ProfileScreen: React.FC = () => {
   const handleLockAdmin = () => {
     hapticMedium();
     setIsAdminUnlocked(false);
-    Alert.alert('Admin Locked', 'Moderation Console has been securely locked.');
+    Alert.alert('Admin Locked', 'Permit Verification Console has been securely locked.');
   };
 
-  const handleOpenEditShop = (shop: CoffeeShop) => {
-    setEditingShop(shop);
-    setEditName(shop.name);
-    setEditCity(shop.city || 'Metro Manila');
-    setEditVicinity(shop.vicinity || '');
-    setEditOutlets(shop.outletRating || 'plentiful');
-    setEditSeating(shop.seatingStatus || 'available');
-    setEditWifiSpeed(shop.wifiSpeed || 'Fast (250 Mbps+ verified)');
-    setEditBeanOrigin(shop.beanOrigins?.[0]);
-    setEditGcash(shop.acceptsGcash !== false);
-    setEditShopModalVisible(true);
-  };
-
-  const handleSaveShopEdit = () => {
-    if (!editingShop) return;
-    if (!editName.trim()) {
-      Alert.alert('Missing Name', 'Please enter a valid café name.');
-      return;
-    }
-    adminUpdateShop(editingShop.id, {
-      name: editName.trim(),
-      city: editCity.trim(),
-      vicinity: editVicinity.trim(),
-      outletRating: editOutlets,
-      seatingStatus: editSeating,
-      wifiSpeed: editWifiSpeed.trim(),
-      beanOrigins: editBeanOrigin ? [editBeanOrigin] : [],
-      acceptsGcash: editGcash,
-    });
+  const handleApproveClaim = (claimId: string, shopName: string) => {
+    approveClaim(claimId);
     hapticSuccess();
-    setEditShopModalVisible(false);
-    setEditingShop(null);
-    Alert.alert('Changes Saved', `Updated metadata for "${editName}".`);
+    Alert.alert(
+      'Permit Verified',
+      `Ownership credentials for "${shopName}" have been validated. Verified green checkmark badge granted.`,
+    );
   };
 
-  const handleDeleteShopConfirm = (shop: CoffeeShop) => {
+  const handleRejectClaim = (claimId: string, shopName: string) => {
+    rejectClaim(claimId, 'Permit documentation did not match local city or DTI registry records.');
+    hapticWarning();
+    Alert.alert('Claim Rejected', `Rejected application for "${shopName}". Owner notified.`);
+  };
+
+  const handleRevokeClaim = (claimId: string, shopName: string) => {
     Alert.alert(
-      'Delete & Delist Café?',
-      `Are you sure you want to permanently delete "${shop.name}" from KapeRoute? This will delist the shop across all user feeds.`,
+      'Revoke Verification?',
+      `Are you sure you want to revoke the verified badge for "${shopName}"? The owner portal will return to unverified status.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete Café',
+          text: 'Revoke Badge',
           style: 'destructive',
           onPress: () => {
-            adminDeleteShop(shop.id);
+            revokeClaim(claimId);
             hapticWarning();
-            Alert.alert('Deleted', `"${shop.name}" has been removed from KapeRoute.`);
+            Alert.alert('Verification Revoked', `"${shopName}" is now marked as Unverified.`);
           },
         },
       ],
     );
   };
 
-  const handleToggleVerifiedBadge = (shop: CoffeeShop) => {
-    adminToggleShopVerified(shop.id);
-    const isNowVerified = !verifiedOwnerShopIds.includes(shop.id);
-    hapticSuccess();
+  const handleDeleteClaim = (claimId: string, shopName: string) => {
     Alert.alert(
-      isNowVerified ? 'Verified Badge Granted' : 'Verified Badge Revoked',
-      `"${shop.name}" is now marked as ${isNowVerified ? 'Verified (✓)' : 'Unverified'}.`,
+      'Delete Claim Application?',
+      `Are you sure you want to permanently delete the permit claim for "${shopName}"? This is recommended to purge spam or fraudulent submissions.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Submission',
+          style: 'destructive',
+          onPress: () => {
+            deleteClaim(claimId);
+            hapticWarning();
+            Alert.alert('Deleted', `Permit submission for "${shopName}" has been permanently purged.`);
+          },
+        },
+      ],
     );
   };
 
-  const handleApproveClaim = (claimId: string, shopName: string, shopId: string) => {
-    approveClaim(claimId);
-    adminToggleShopVerified(shopId);
-    hapticSuccess();
-    Alert.alert('Claim Approved', `Verified badge granted to "${shopName}". Owner notified.`);
-  };
-
-  const handleRejectClaim = (claimId: string, shopName: string) => {
-    rejectClaim(claimId, 'Permit documentation did not match local government registry records.');
-    hapticWarning();
-    Alert.alert('Claim Rejected', `Rejected application for "${shopName}".`);
-  };
-
-  const filteredShops = shops.filter((s) => {
-    const q = adminSearchQuery.toLowerCase();
-    const matchesSearch = s.name.toLowerCase().includes(q) || (s.city && s.city.toLowerCase().includes(q));
+  const filteredClaims = claimRequests.filter((claim) => {
+    const q = claimSearchQuery.toLowerCase();
+    const matchesSearch =
+      claim.shopName.toLowerCase().includes(q) ||
+      claim.ownerFullName.toLowerCase().includes(q) ||
+      claim.businessEmail.toLowerCase().includes(q) ||
+      claim.dtiOrSecNumber.toLowerCase().includes(q);
     if (!matchesSearch) return false;
-    if (adminFilterCat === 'verified') return verifiedOwnerShopIds.includes(s.id) || s.isVerified;
-    if (adminFilterCat === 'plugs') return s.outletRating === 'plentiful';
-    if (adminFilterCat === 'origin') return !!(s.beanOrigins && s.beanOrigins.length > 0);
+    if (claimFilterStatus !== 'all' && claim.status !== claimFilterStatus) return false;
     return true;
   });
 
@@ -546,17 +512,17 @@ export const ProfileScreen: React.FC = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.adminTitleRow}>
-                  <Text style={styles.cardTitle}>Administrator Console</Text>
+                  <Text style={styles.cardTitle}>Permit Verification Console</Text>
                   {hasAdminAccess && (
                     <View style={styles.adminBadgeActive}>
-                      <Text style={styles.adminBadgeActiveText}>UNLOCKED</Text>
+                      <Text style={styles.adminBadgeActiveText}>ADMIN ACTIVE</Text>
                     </View>
                   )}
                 </View>
                 <Text style={styles.adminSubtitle}>
                   {hasAdminAccess
-                    ? 'Verify permits, edit café metadata, fact-check & delist'
-                    : 'Manage listings, inspect DTI permits & verify claims'}
+                    ? 'Audit DTI/Mayor permits, fact-check submissions & revoke fraud'
+                    : 'Inspect permit applications, approve badges & delete spam claims'}
                 </Text>
               </View>
             </View>
@@ -592,142 +558,170 @@ export const ProfileScreen: React.FC = () => {
             </View>
           )}
 
-          {/* UNLOCKED FULL MODERATION DASHBOARD */}
+          {/* UNLOCKED PERMIT CLAIMS AUDIT DASHBOARD */}
           {hasAdminAccess && (
             <View style={styles.adminConsoleBody}>
-              {/* Tab Switcher: Claims vs Cafes */}
-              <View style={styles.adminTabsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.adminTabBtn,
-                    activeAdminTab === 'claims' && styles.adminTabBtnActive,
-                  ]}
-                  onPress={() => setActiveAdminTab('claims')}
-                >
-                  <Feather
-                    name="inbox"
-                    size={13}
-                    color={activeAdminTab === 'claims' ? '#FFFFFF' : COLORS.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.adminTabBtnText,
-                      activeAdminTab === 'claims' && styles.adminTabBtnTextActive,
-                    ]}
-                  >
-                    Permit Claims ({claimRequests.filter((c) => c.status === 'pending').length})
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.adminTabBtn,
-                    activeAdminTab === 'cafes' && styles.adminTabBtnActive,
-                  ]}
-                  onPress={() => setActiveAdminTab('cafes')}
-                >
-                  <Feather
-                    name="coffee"
-                    size={13}
-                    color={activeAdminTab === 'cafes' ? '#FFFFFF' : COLORS.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.adminTabBtnText,
-                      activeAdminTab === 'cafes' && styles.adminTabBtnTextActive,
-                    ]}
-                  >
-                    All Coffee Shops ({shops.length})
-                  </Text>
-                </TouchableOpacity>
+              {/* Claims Search Bar */}
+              <View style={styles.adminSearchBarWrap}>
+                <Feather name="search" size={14} color={COLORS.textMuted} />
+                <TextInput
+                  style={styles.adminSearchInput}
+                  placeholder="Search claims by shop, applicant, or permit #..."
+                  placeholderTextColor={COLORS.textMuted}
+                  value={claimSearchQuery}
+                  onChangeText={setClaimSearchQuery}
+                />
+                {claimSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setClaimSearchQuery('')}>
+                    <Feather name="x" size={14} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                )}
               </View>
 
-              {/* TAB 1: CLAIMS & PERMIT VERIFICATION QUEUE */}
-              {activeAdminTab === 'claims' && (
-                <View style={styles.adminTabContent}>
-                  {claimRequests.length === 0 ? (
-                    <View style={styles.emptyAdminTab}>
-                      <Feather name="check-circle" size={24} color={COLORS.verified} />
-                      <Text style={styles.emptyAdminTabText}>No pending claim applications.</Text>
-                    </View>
-                  ) : (
-                    claimRequests.map((claim) => {
-                      const isPending = claim.status === 'pending';
-                      const isVerified = claim.status === 'verified';
+              {/* Status Filter Pills */}
+              <View style={styles.adminFilterRow}>
+                {(
+                  [
+                    { id: 'all', label: `All (${claimRequests.length})` },
+                    {
+                      id: 'pending',
+                      label: `Pending (⚡ ${
+                        claimRequests.filter((c) => c.status === 'pending').length
+                      })`,
+                    },
+                    {
+                      id: 'verified',
+                      label: `Verified (✓ ${
+                        claimRequests.filter((c) => c.status === 'verified').length
+                      })`,
+                    },
+                    {
+                      id: 'rejected',
+                      label: `Rejected (${
+                        claimRequests.filter((c) => c.status === 'rejected').length
+                      })`,
+                    },
+                  ] as const
+                ).map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.adminFilterPill,
+                      claimFilterStatus === cat.id && styles.adminFilterPillActive,
+                    ]}
+                    onPress={() => setClaimFilterStatus(cat.id as any)}
+                  >
+                    <Text
+                      style={[
+                        styles.adminFilterPillText,
+                        claimFilterStatus === cat.id && styles.adminFilterPillTextActive,
+                      ]}
+                    >
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-                      return (
-                        <View key={claim.id} style={styles.adminClaimItem}>
-                          <View style={styles.claimItemHeader}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.claimShopName}>{claim.shopName}</Text>
-                              <Text style={styles.claimApplicantSub}>
-                                By {claim.ownerFullName} • {claim.submittedAt}
-                              </Text>
-                            </View>
-                            <View
+              {/* Applications List */}
+              <View style={styles.adminTabContent}>
+                {filteredClaims.length === 0 ? (
+                  <View style={styles.emptyAdminTab}>
+                    <Feather name="inbox" size={24} color={COLORS.textMuted} />
+                    <Text style={styles.emptyAdminTabText}>
+                      No claim applications match your filter.
+                    </Text>
+                  </View>
+                ) : (
+                  filteredClaims.map((claim) => {
+                    const isPending = claim.status === 'pending';
+                    const isVerified = claim.status === 'verified';
+                    const isRejected = claim.status === 'rejected';
+
+                    return (
+                      <View key={claim.id} style={styles.adminClaimItem}>
+                        <View style={styles.claimItemHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.claimShopName}>{claim.shopName}</Text>
+                            <Text style={styles.claimApplicantSub}>
+                              Applicant: {claim.ownerFullName} • {claim.submittedAt}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.claimStatusBadge,
+                              isVerified
+                                ? styles.claimStatusVerified
+                                : isPending
+                                ? styles.claimStatusPending
+                                : styles.claimStatusRejected,
+                            ]}
+                          >
+                            <Text
                               style={[
-                                styles.claimStatusBadge,
+                                styles.claimStatusBadgeText,
                                 isVerified
-                                  ? styles.claimStatusVerified
+                                  ? styles.claimTextVerified
                                   : isPending
-                                  ? styles.claimStatusPending
-                                  : styles.claimStatusRejected,
+                                  ? styles.claimTextPending
+                                  : styles.claimTextRejected,
                               ]}
                             >
-                              <Text
-                                style={[
-                                  styles.claimStatusBadgeText,
-                                  isVerified
-                                    ? styles.claimTextVerified
-                                    : isPending
-                                    ? styles.claimTextPending
-                                    : styles.claimTextRejected,
-                                ]}
-                              >
-                                {claim.status.toUpperCase()}
+                              {claim.status.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Fact-Checking & Credential Audit Card */}
+                        <View style={styles.claimCredsGrid}>
+                          <View style={styles.credRow}>
+                            <Text style={styles.credLabel}>Business Email:</Text>
+                            <Text style={styles.credValue}>{claim.businessEmail}</Text>
+                          </View>
+                          <View style={styles.credRow}>
+                            <Text style={styles.credLabel}>Contact Phone:</Text>
+                            <Text style={styles.credValue}>{claim.phoneNumber}</Text>
+                          </View>
+                          <View style={styles.credRow}>
+                            <Text style={styles.credLabel}>{claim.permitType}:</Text>
+                            <Text style={[styles.credValue, { fontWeight: '700', color: COLORS.primary }]}>
+                              {claim.dtiOrSecNumber}
+                            </Text>
+                          </View>
+                          {claim.rejectionReason && (
+                            <View style={[styles.credRow, { marginTop: 2 }]}>
+                              <Text style={[styles.credLabel, { color: COLORS.danger }]}>Rejection Note:</Text>
+                              <Text style={[styles.credValue, { color: COLORS.danger, flex: 1, textAlign: 'right' }]} numberOfLines={2}>
+                                {claim.rejectionReason}
                               </Text>
                             </View>
-                          </View>
-
-                          <View style={styles.claimCredsGrid}>
-                            <View style={styles.credRow}>
-                              <Text style={styles.credLabel}>Email:</Text>
-                              <Text style={styles.credValue}>{claim.businessEmail}</Text>
-                            </View>
-                            <View style={styles.credRow}>
-                              <Text style={styles.credLabel}>Phone:</Text>
-                              <Text style={styles.credValue}>{claim.phoneNumber}</Text>
-                            </View>
-                            <View style={styles.credRow}>
-                              <Text style={styles.credLabel}>{claim.permitType}:</Text>
-                              <Text style={[styles.credValue, { fontWeight: '700', color: COLORS.primary }]}>
-                                {claim.dtiOrSecNumber}
-                              </Text>
-                            </View>
-                          </View>
-
-                          {/* Permit Photo Inspection */}
-                          {claim.permitPhotoUri && (
-                            <TouchableOpacity
-                              style={styles.inspectPermitBtn}
-                              onPress={() => setPreviewDocUri(claim.permitPhotoUri!)}
-                              activeOpacity={0.8}
-                            >
-                              <Image source={{ uri: claim.permitPhotoUri }} style={styles.inspectThumbnail} />
-                              <View style={styles.inspectTextCol}>
-                                <Text style={styles.inspectTitle}>Inspect Uploaded Document</Text>
-                                <Text style={styles.inspectSub}>Tap to view full resolution ›</Text>
-                              </View>
-                              <Feather name="maximize-2" size={14} color={COLORS.primary} />
-                            </TouchableOpacity>
                           )}
+                        </View>
 
-                          {/* Action Buttons */}
+                        {/* Attached Permit Document Photo Preview */}
+                        {claim.permitPhotoUri && (
+                          <TouchableOpacity
+                            style={styles.inspectPermitBtn}
+                            onPress={() => setPreviewDocUri(claim.permitPhotoUri!)}
+                            activeOpacity={0.8}
+                          >
+                            <Image source={{ uri: claim.permitPhotoUri }} style={styles.inspectThumbnail} />
+                            <View style={styles.inspectTextCol}>
+                              <Text style={styles.inspectTitle}>Inspect Uploaded Document</Text>
+                              <Text style={styles.inspectSub}>Tap to view full resolution ›</Text>
+                            </View>
+                            <Feather name="maximize-2" size={14} color={COLORS.primary} />
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Claim Moderation Actions */}
+                        <View style={styles.claimActionsRow}>
                           {isPending && (
-                            <View style={styles.claimActionsRow}>
+                            <>
                               <TouchableOpacity
                                 style={styles.claimRejectBtn}
                                 onPress={() => handleRejectClaim(claim.id, claim.shopName)}
+                                activeOpacity={0.8}
                               >
                                 <Feather name="x" size={13} color={COLORS.danger} />
                                 <Text style={styles.claimRejectText}>Reject</Text>
@@ -735,172 +729,51 @@ export const ProfileScreen: React.FC = () => {
 
                               <TouchableOpacity
                                 style={styles.claimApproveBtn}
-                                onPress={() => handleApproveClaim(claim.id, claim.shopName, claim.shopId)}
+                                onPress={() => handleApproveClaim(claim.id, claim.shopName)}
+                                activeOpacity={0.8}
                               >
                                 <Feather name="check" size={13} color="#FFFFFF" />
                                 <Text style={styles.claimApproveText}>Approve & Verify</Text>
                               </TouchableOpacity>
-                            </View>
+                            </>
                           )}
-                        </View>
-                      );
-                    })
-                  )}
-                </View>
-              )}
 
-              {/* TAB 2: ALL COFFEE SHOPS & FACT CHECKING */}
-              {activeAdminTab === 'cafes' && (
-                <View style={styles.adminTabContent}>
-                  {/* Search Bar */}
-                  <View style={styles.adminSearchBarWrap}>
-                    <Feather name="search" size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      style={styles.adminSearchInput}
-                      placeholder="Search café by name or city..."
-                      placeholderTextColor={COLORS.textMuted}
-                      value={adminSearchQuery}
-                      onChangeText={setAdminSearchQuery}
-                    />
-                    {adminSearchQuery.length > 0 && (
-                      <TouchableOpacity onPress={() => setAdminSearchQuery('')}>
-                        <Feather name="x" size={14} color={COLORS.textMuted} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Filter Pills */}
-                  <View style={styles.adminFilterRow}>
-                    {(['all', 'verified', 'plugs', 'origin'] as const).map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[
-                          styles.adminFilterPill,
-                          adminFilterCat === cat && styles.adminFilterPillActive,
-                        ]}
-                        onPress={() => setAdminFilterCat(cat)}
-                      >
-                        <Text
-                          style={[
-                            styles.adminFilterPillText,
-                            adminFilterCat === cat && styles.adminFilterPillTextActive,
-                          ]}
-                        >
-                          {cat === 'all'
-                            ? `All (${shops.length})`
-                            : cat === 'verified'
-                            ? 'Verified ✓'
-                            : cat === 'plugs'
-                            ? '⚡ Plugs'
-                            : '🌱 Origins'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Shop List */}
-                  {filteredShops.map((shop) => {
-                    const isVerified = verifiedOwnerShopIds.includes(shop.id) || shop.isVerified;
-
-                    return (
-                      <View key={shop.id} style={styles.adminShopCard}>
-                        <View style={styles.adminShopHeader}>
-                          <View style={styles.adminShopTitleCol}>
-                            <View style={styles.adminShopNameRow}>
-                              <Text style={styles.adminShopName} numberOfLines={1}>
-                                {shop.name}
-                              </Text>
-                              {isVerified && (
-                                <Feather name="check-circle" size={14} color={COLORS.verified} />
-                              )}
-                            </View>
-                            <Text style={styles.adminShopCity}>
-                              {shop.city || 'Metro Manila'} • {shop.vicinity || 'Specialty Spot'}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Fact-Checking Badges Preview */}
-                        <View style={styles.factBadgesRow}>
-                          <View style={styles.factBadge}>
-                            <Text style={styles.factBadgeText}>
-                              {shop.outletRating === 'plentiful'
-                                ? '⚡ Plentiful Plugs'
-                                : shop.outletRating === 'wall_only'
-                                ? '⚠️ Wall-Only'
-                                : '⚡ Unknown Outlets'}
-                            </Text>
-                          </View>
-
-                          <View style={styles.factBadge}>
-                            <Text style={styles.factBadgeText}>
-                              🪑 {shop.seatingStatus ? shop.seatingStatus.toUpperCase() : 'AVAILABLE'}
-                            </Text>
-                          </View>
-
-                          {shop.beanOrigins && shop.beanOrigins.length > 0 && (
-                            <View style={styles.factBadge}>
-                              <Text style={styles.factBadgeText}>
-                                {shop.beanOrigins[0] === 'sagada'
-                                  ? '🌱 Sagada'
-                                  : shop.beanOrigins[0] === 'apo'
-                                  ? '🏔️ Mt. Apo'
-                                  : shop.beanOrigins[0] === 'benguet'
-                                  ? '🌿 Benguet'
-                                  : '☕ Barako'}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-
-                        {/* Action Toolbar */}
-                        <View style={styles.shopActionToolbar}>
-                          <TouchableOpacity
-                            style={styles.shopActionEditBtn}
-                            onPress={() => handleOpenEditShop(shop)}
-                            activeOpacity={0.8}
-                          >
-                            <Feather name="edit-2" size={12} color={COLORS.primary} />
-                            <Text style={styles.shopActionEditText}>Edit</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[
-                              styles.shopActionVerifyBtn,
-                              isVerified && styles.shopActionRevokeBtn,
-                            ]}
-                            onPress={() => handleToggleVerifiedBadge(shop)}
-                            activeOpacity={0.8}
-                          >
-                            <Feather
-                              name={isVerified ? 'slash' : 'check-circle'}
-                              size={12}
-                              color={isVerified ? '#D35400' : '#1B5E20'}
-                            />
-                            <Text
-                              style={[
-                                styles.shopActionVerifyText,
-                                isVerified && styles.shopActionRevokeText,
-                              ]}
+                          {isVerified && (
+                            <TouchableOpacity
+                              style={styles.claimRevokeBtn}
+                              onPress={() => handleRevokeClaim(claim.id, claim.shopName)}
+                              activeOpacity={0.8}
                             >
-                              {isVerified ? 'Revoke' : 'Verify'}
-                            </Text>
-                          </TouchableOpacity>
+                              <Feather name="slash" size={13} color="#D35400" />
+                              <Text style={styles.claimRevokeText}>Revoke Verification</Text>
+                            </TouchableOpacity>
+                          )}
 
+                          {isRejected && (
+                            <TouchableOpacity
+                              style={styles.claimApproveBtn}
+                              onPress={() => handleApproveClaim(claim.id, claim.shopName)}
+                              activeOpacity={0.8}
+                            >
+                              <Feather name="check" size={13} color="#FFFFFF" />
+                              <Text style={styles.claimApproveText}>Re-Approve Claim</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* Delete Application (Purge fraudulent or spam claims) */}
                           <TouchableOpacity
-                            style={styles.shopActionDeleteBtn}
-                            onPress={() => handleDeleteShopConfirm(shop)}
+                            style={styles.claimDeleteBtn}
+                            onPress={() => handleDeleteClaim(claim.id, claim.shopName)}
                             activeOpacity={0.8}
                           >
-                            <Feather name="trash-2" size={12} color={COLORS.danger} />
-                            <Text style={styles.shopActionDeleteText}>Delist</Text>
+                            <Feather name="trash-2" size={13} color={COLORS.danger} />
                           </TouchableOpacity>
                         </View>
                       </View>
                     );
-                  })}
-                </View>
-              )}
+                  })
+                )}
+              </View>
             </View>
           )}
         </View>
@@ -1210,206 +1083,7 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* 2. Admin Coffee Shop Metadata & Fact-Checking Edit Modal */}
-      <Modal
-        visible={editShopModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setEditShopModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.editShopModalCard}>
-            <View style={styles.editShopHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.editShopTitle}>Edit Coffee Shop Metadata</Text>
-                <Text style={styles.editShopSub}>Fact-checking & community data curation</Text>
-              </View>
-              <TouchableOpacity onPress={() => setEditShopModalVisible(false)}>
-                <Feather name="x" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.editModalScroll}>
-              <Text style={styles.modalFieldLabel}>Café Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Café Name"
-              />
-
-              <Text style={styles.modalFieldLabel}>City / Hub</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editCity}
-                onChangeText={setEditCity}
-                placeholder="e.g. Quezon City, Metro Manila"
-              />
-
-              <Text style={styles.modalFieldLabel}>Address / Vicinity</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editVicinity}
-                onChangeText={setEditVicinity}
-                placeholder="Street address or landmark"
-              />
-
-              <Text style={styles.modalFieldLabel}>Wi-Fi Speed & Connectivity</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editWifiSpeed}
-                onChangeText={setEditWifiSpeed}
-                placeholder="e.g. Fast (250 Mbps+ verified)"
-              />
-
-              {/* Power Outlets-per-Table Fact Checking */}
-              <Text style={styles.modalFieldLabel}>Power Outlets Rating</Text>
-              <View style={styles.modalChipRow}>
-                {[
-                  { id: 'plentiful' as OutletRating, label: '⚡ Plentiful Plugs' },
-                  { id: 'wall_only' as OutletRating, label: '⚠️ Wall-Only' },
-                  { id: 'laptop_ban' as OutletRating, label: '🚫 Laptop Ban' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[
-                      styles.modalOptionChip,
-                      editOutlets === opt.id && styles.modalOptionChipActive,
-                    ]}
-                    onPress={() => setEditOutlets(opt.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionChipText,
-                        editOutlets === opt.id && styles.modalOptionChipTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Live Seating Capacity */}
-              <Text style={styles.modalFieldLabel}>Live Seating Status</Text>
-              <View style={styles.modalChipRow}>
-                {[
-                  { id: 'available' as LiveSeatingStatus, label: '🟢 Available' },
-                  { id: 'moderate' as LiveSeatingStatus, label: '🟡 Moderate' },
-                  { id: 'full' as LiveSeatingStatus, label: '🔴 Few Seats' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[
-                      styles.modalOptionChip,
-                      editSeating === opt.id && styles.modalOptionChipActive,
-                    ]}
-                    onPress={() => setEditSeating(opt.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionChipText,
-                        editSeating === opt.id && styles.modalOptionChipTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Philippine Single-Origin Heritage Bean */}
-              <Text style={styles.modalFieldLabel}>Philippine Single-Origin Bean Badge</Text>
-              <View style={styles.modalChipRow}>
-                {[
-                  { id: undefined, label: 'None / Blend' },
-                  { id: 'sagada' as BeanOrigin, label: '🌱 Sagada' },
-                  { id: 'apo' as BeanOrigin, label: '🏔️ Mt. Apo' },
-                  { id: 'benguet' as BeanOrigin, label: '🌿 Benguet' },
-                  { id: 'barako' as BeanOrigin, label: '☕ Barako' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.label}
-                    style={[
-                      styles.modalOptionChip,
-                      editBeanOrigin === opt.id && styles.modalOptionChipActive,
-                    ]}
-                    onPress={() => setEditBeanOrigin(opt.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionChipText,
-                        editBeanOrigin === opt.id && styles.modalOptionChipTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* GCash Acceptance Toggle */}
-              <Text style={styles.modalFieldLabel}>GCash / QRPh Cashless Accepted</Text>
-              <View style={styles.modalChipRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.modalOptionChip,
-                    editGcash && styles.modalOptionChipActive,
-                  ]}
-                  onPress={() => setEditGcash(true)}
-                >
-                  <Text
-                    style={[
-                      styles.modalOptionChipText,
-                      editGcash && styles.modalOptionChipTextActive,
-                    ]}
-                  >
-                    🔵 GCash Accepted
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.modalOptionChip,
-                    !editGcash && styles.modalOptionChipActive,
-                  ]}
-                  onPress={() => setEditGcash(false)}
-                >
-                  <Text
-                    style={[
-                      styles.modalOptionChipText,
-                      !editGcash && styles.modalOptionChipTextActive,
-                    ]}
-                  >
-                    💵 Cash Only
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Modal Actions */}
-              <View style={styles.modalSaveRow}>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setEditShopModalVisible(false)}
-                >
-                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.modalSaveBtn}
-                  onPress={handleSaveShopEdit}
-                  activeOpacity={0.85}
-                >
-                  <Feather name="check" size={14} color="#FFFFFF" />
-                  <Text style={styles.modalSaveBtnText}>Save Changes</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 3. Document / Permit High-Res Inspection Modal */}
+      {/* 2. Document / Permit High-Res Inspection Modal */}
       <Modal
         visible={!!previewDocUri}
         transparent
@@ -2307,64 +1981,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
   },
-  shopActionToolbar: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  shopActionEditBtn: {
+  claimRevokeBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 5,
+    paddingVertical: 7,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.surfaceWarm,
-  },
-  shopActionEditText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  shopActionVerifyBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 5,
-    borderRadius: RADIUS.sm,
-    backgroundColor: '#E8F5E9',
-  },
-  shopActionRevokeBtn: {
     backgroundColor: '#FFF3E0',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
   },
-  shopActionVerifyText: {
-    fontSize: 11,
+  claimRevokeText: {
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#1B5E20',
+    color: '#D35400',
   },
-  shopActionRevokeText: {
-    color: '#E65100',
-  },
-  shopActionDeleteBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 5,
+  claimDeleteBtn: {
+    width: 36,
+    height: 34,
     borderRadius: RADIUS.sm,
     backgroundColor: '#FDEEE9',
-  },
-  shopActionDeleteText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.danger,
+    borderWidth: 1,
+    borderColor: '#F9CCC2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Admin PIN Auth Modal Styles
   adminPinModalOverlay: {
@@ -2468,114 +2110,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: 2,
-  },
-  // Edit Shop Modal Styles
-  editShopModalCard: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    maxHeight: '90%',
-    gap: SPACING.sm,
-  },
-  editShopHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  editShopTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  editShopSub: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  editModalScroll: {
-    marginTop: 6,
-  },
-  modalFieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  modalInput: {
-    backgroundColor: COLORS.surfaceWarm,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-  },
-  modalChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  modalOptionChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.surfaceWarm,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  modalOptionChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  modalOptionChipText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  modalOptionChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  modalSaveRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 18,
-    marginBottom: 20,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surfaceWarm,
-  },
-  modalCancelBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  modalSaveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
-  },
-  modalSaveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   // Full Document Image Modal Styles
   imageViewerOverlay: {

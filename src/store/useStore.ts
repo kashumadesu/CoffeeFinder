@@ -97,6 +97,8 @@ interface AppState {
   submitClaim: (request: Omit<OwnerClaimRequest, 'id' | 'submittedAt' | 'status'>) => void;
   approveClaim: (claimId: string) => void;
   rejectClaim: (claimId: string, reason: string) => void;
+  deleteClaim: (claimId: string) => void;
+  revokeClaim: (claimId: string) => void;
   isShopClaimed: (shopId: string) => boolean;
 
   // ---- owner portal (SaaS live updates) ----
@@ -381,6 +383,41 @@ export const useStore = create<AppState>((set, get) => ({
       AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
       // Cloud Firestore sync
       rejectClaimInFirestore(claimId, reason).catch(() => {});
+    } catch {}
+  },
+
+  deleteClaim: (claimId) => {
+    const claim = get().claimRequests.find((c) => c.id === claimId);
+    const updated = get().claimRequests.filter((c) => c.id !== claimId);
+    const updatedVerified = claim
+      ? get().verifiedOwnerShopIds.filter((id) => id !== claim.shopId)
+      : get().verifiedOwnerShopIds;
+
+    set({ claimRequests: updated, verifiedOwnerShopIds: updatedVerified });
+    try {
+      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
+    } catch {}
+  },
+
+  revokeClaim: (claimId) => {
+    const claim = get().claimRequests.find((c) => c.id === claimId);
+    const updated = get().claimRequests.map((c) =>
+      c.id === claimId
+        ? {
+            ...c,
+            status: 'rejected' as const,
+            rejectionReason: 'Verification revoked by administrator upon fraud / document audit.',
+            reviewedAt: 'Just now',
+          }
+        : c,
+    );
+    const updatedVerified = claim
+      ? get().verifiedOwnerShopIds.filter((id) => id !== claim.shopId)
+      : get().verifiedOwnerShopIds;
+
+    set({ claimRequests: updated, verifiedOwnerShopIds: updatedVerified });
+    try {
+      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(updated));
     } catch {}
   },
 
