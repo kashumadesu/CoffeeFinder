@@ -1,11 +1,8 @@
-// ============================================================
-// ShopCard — Specialty Café Preview Card with Outlets & Origin Badges
-// ============================================================
-
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, getPhotoUrl } from '@constants';
+import { useStore } from '@store/useStore';
 import { formatDistance } from '@services/googlePlaces';
 import { RatingStars } from './RatingStars';
 import type { CoffeeShop } from '@types';
@@ -25,6 +22,7 @@ export const ShopCard: React.FC<Props> = ({
   isFavorite = false,
   compact = false,
 }) => {
+  const isVisited = useStore((s) => s.isShopVisited(shop.id));
   const photoUrl =
     shop.galleryUrls?.[0] ??
     (shop.photos?.[0] ? getPhotoUrl(shop.photos[0].photoReference, 400) : null);
@@ -59,6 +57,25 @@ export const ShopCard: React.FC<Props> = ({
         {shop.openNow !== undefined && (
           <View style={[styles.badge, shop.openNow ? styles.badgeOpen : styles.badgeClosed]}>
             <Text style={styles.badgeText}>{shop.openNow ? 'Open' : 'Closed'}</Text>
+          </View>
+        )}
+        {isVisited && (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 6,
+              left: 6,
+              backgroundColor: 'rgba(27, 94, 32, 0.92)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 3,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 8,
+            }}
+          >
+            <Feather name="check" size={10} color="#FFFFFF" />
+            <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#FFFFFF' }}>Visited</Text>
           </View>
         )}
       </View>
