@@ -347,67 +347,41 @@ export const OwnerPortalScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Top Header */}
+      {/* Spacious Minimalist Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerTitleRow}
-          onLongPress={() => setAdminPinModalVisible(true)}
-          activeOpacity={0.9}
-        >
-          <Feather name="briefcase" size={20} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Owner & Business</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeftCol}>
+          <Text style={styles.headerTitle}>Owner Portal</Text>
+          <Text style={styles.headerSubtitle}>
+            {hasAdminAccess
+              ? 'Administrator Moderation Center'
+              : verificationStatus === 'verified'
+              ? 'Verified Café Management'
+              : 'Business Listing & Verification'}
+          </Text>
+        </View>
 
-        {/* Right Header: Admin Indicator & Status Badge */}
+        {/* Right Header: Clean Shield Action */}
         <View style={styles.headerRightActions}>
           {hasAdminAccess ? (
             <TouchableOpacity
-              style={styles.adminUnlockedBadge}
+              style={styles.adminActivePill}
               onPress={handleLockAdminMode}
               activeOpacity={0.8}
             >
-              <Feather name="shield" size={12} color="#0D47A1" />
-              <Text style={styles.adminUnlockedText}>Admin Active</Text>
-              <Feather name="lock" size={11} color="#0D47A1" />
+              <Feather name="shield" size={12} color="#1B5E20" />
+              <Text style={styles.adminActivePillText}>Admin Active</Text>
+              <Feather name="x" size={11} color="#1B5E20" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.adminLockIconBtn}
               onPress={() => setAdminPinModalVisible(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Feather name="shield" size={16} color={COLORS.textMuted} />
+              <Feather name="shield" size={16} color={COLORS.textSecondary} />
             </TouchableOpacity>
           )}
-
-          {/* Status Badge */}
-          <View
-            style={[
-              styles.statusBadge,
-              verificationStatus === 'verified'
-                ? styles.statusBadgeVerified
-                : verificationStatus === 'pending'
-                ? styles.statusBadgePending
-                : styles.statusBadgeUnregistered,
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusBadgeText,
-                verificationStatus === 'verified'
-                  ? styles.statusTextVerified
-                  : verificationStatus === 'pending'
-                  ? styles.statusTextPending
-                  : styles.statusTextUnregistered,
-              ]}
-            >
-              {verificationStatus === 'verified'
-                ? 'VERIFIED OWNER'
-                : verificationStatus === 'pending'
-                ? 'UNDER REVIEW'
-                : 'VERIFICATION REQUIRED'}
-            </Text>
-          </View>
         </View>
       </View>
 
@@ -473,8 +447,15 @@ export const OwnerPortalScreen: React.FC = () => {
             {verificationStatus === 'unregistered' && (
               <View style={styles.unverifiedContainer}>
                 <View style={styles.lockHeroCard}>
+                  {/* Status Pill Inside Card Header */}
+                  <View style={styles.heroStatusBadgeRow}>
+                    <View style={styles.unregisteredStatusPill}>
+                      <Text style={styles.unregisteredStatusText}>VERIFICATION REQUIRED</Text>
+                    </View>
+                  </View>
+
                   <View style={styles.lockIconCircle}>
-                    <Feather name="shield" size={32} color={COLORS.primary} />
+                    <Feather name="shield" size={28} color={COLORS.primary} />
                   </View>
                   <Text style={styles.lockTitle}>Claim & Verify Your Café</Text>
                   <Text style={styles.lockSubtitle}>
@@ -1349,51 +1330,77 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: COLORS.borderLight,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  headerLeftCol: {
+    flex: 1,
+    gap: 2,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: COLORS.primary,
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginLeft: SPACING.sm,
   },
-  adminUnlockedBadge: {
+  adminActivePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: '#90CAF9',
-    gap: 4,
+    borderColor: '#A5D6A7',
+    gap: 5,
   },
-  adminUnlockedText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0D47A1',
+  adminActivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B5E20',
   },
   adminLockIconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.background,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.surfaceWarm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.borderLight,
+  },
+  heroStatusBadgeRow: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  unregisteredStatusPill: {
+    backgroundColor: '#FDEEE9',
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: '#F9CCC2',
+  },
+  unregisteredStatusText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#C0392B',
+    letterSpacing: 0.5,
   },
   adminUnlockLink: {
     flexDirection: 'row',
