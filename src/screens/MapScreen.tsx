@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
   Image,
+  Keyboard,
 } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
@@ -25,6 +26,7 @@ import { useStore } from '@store/useStore';
 import { useLocation } from '@hooks/useLocation';
 import { useFavorites } from '@hooks/useFavorites';
 import { CoffeeMarker } from '@components/CoffeeMarker';
+import { UserLocationMarker } from '@components/UserLocationMarker';
 import { SearchBar } from '@components/SearchBar';
 import { FilterBar } from '@components/FilterBar';
 import { RegionSelector } from '@components/RegionSelector';
@@ -58,6 +60,7 @@ export const MapScreen: React.FC = () => {
   const setSelectedShop = useStore((s) => s.setSelectedShop);
   const fetchNearbyShops = useStore((s) => s.fetchNearbyShops);
   const userLocation = useStore((s) => s.userLocation);
+  const userHeading = useStore((s) => s.userHeading);
   const gcashOnly = useStore((s) => s.filters.gcashOnly);
   const toggleGcashOnly = useStore((s) => s.toggleGcashOnly);
   const activeNavigationShop = useStore((s) => s.activeNavigationShop);
@@ -154,6 +157,7 @@ export const MapScreen: React.FC = () => {
 
   const handleMarkerPress = useCallback(
     (shop: CoffeeShop) => {
+      Keyboard.dismiss();
       setSelectedShop(shop);
       // Snap bottom sheet to middle so the café card is visible — R3 fix
       bottomSheetRef.current?.snapToIndex(1);
@@ -163,6 +167,7 @@ export const MapScreen: React.FC = () => {
 
   const handleShopPress = useCallback(
     (shop: CoffeeShop) => {
+      Keyboard.dismiss();
       setSelectedShop(shop);
       nav.navigate('ShopDetail', { shop });
     },
@@ -170,6 +175,7 @@ export const MapScreen: React.FC = () => {
   );
 
   const handleMapPress = useCallback(() => {
+    Keyboard.dismiss();
     if (!activeNavigationShop) {
       setSelectedShop(null);
     }
@@ -246,7 +252,7 @@ export const MapScreen: React.FC = () => {
         ref={mapRef}
         style={styles.map}
         initialRegion={DEFAULT_REGION}
-        showsUserLocation
+        showsUserLocation={false}
         showsMyLocationButton={false}
         minZoomLevel={6}
         mapType={mapType}
@@ -254,6 +260,14 @@ export const MapScreen: React.FC = () => {
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
+        {/* Google Maps Directional Heading Cone & Blue Beacon */}
+        {userLocation && (
+          <UserLocationMarker
+            location={userLocation}
+            heading={userHeading}
+          />
+        )}
+
         {/* Render Road-Following Route Polyline during navigation */}
         {activeNavigationShop && (
           <RoutePolyline

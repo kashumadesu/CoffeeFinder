@@ -45,9 +45,11 @@ const TREK_PACKS_KEY = '@coffee_finder:trek_packs_v1';
 interface AppState {
   // ---- location & regional hubs ----
   userLocation: Location;
+  userHeading: number;
   currentRegion: RegionHub;
   mapType: MapTypeOption;
   setUserLocation: (loc: Location) => void;
+  setUserHeading: (heading: number) => void;
   setRegion: (region: RegionHub) => void;
   setMapType: (type: MapTypeOption) => void;
 
@@ -129,10 +131,14 @@ export const useStore = create<AppState>((set, get) => ({
     latitude: REGION_HUBS[0].latitude,
     longitude: REGION_HUBS[0].longitude,
   },
+  userHeading: 0,
   mapType: 'standard',
 
   setUserLocation: (loc) => {
     set({ userLocation: loc });
+  },
+  setUserHeading: (heading) => {
+    set({ userHeading: heading });
   },
   setRegion: (region) => {
     const loc = { latitude: region.latitude, longitude: region.longitude };
