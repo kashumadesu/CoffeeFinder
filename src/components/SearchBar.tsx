@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // SearchBar — Live Autocomplete Search with Instant History & Dismiss
 // ============================================================
 
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from '@constants';
@@ -18,14 +19,16 @@ import { logSearchEvent } from '@services/analytics';
 import { SearchSuggestions } from '@components/SearchSuggestions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { hapticLight } from '@utils/haptics';
+import type { CoffeeShop } from '@types';
 
 interface Props {
   onAvatarPress?: () => void;
+  onSelectShop?: (shop: CoffeeShop) => void;
 }
 
 const SEARCH_HISTORY_KEY = '@coffee_finder:search_history_v1';
 
-export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
+export const SearchBar: React.FC<Props> = ({ onAvatarPress, onSelectShop }) => {
   const searchQuery = useStore((s) => s.filters.searchQuery);
   const setSearchQuery = useStore((s) => s.setSearchQuery);
   const currentRegion = useStore((s) => s.currentRegion.id);
@@ -34,6 +37,22 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
 
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Handle Android Hardware Back Button to dismiss search overlay
+  React.useEffect(() => {
+    const onBackPress = () => {
+      if (isFocused) {
+        setIsFocused(false);
+        Keyboard.dismiss();
+        inputRef.current?.blur();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [isFocused]);
 
   const handleSubmit = async () => {
     Keyboard.dismiss();
@@ -61,12 +80,19 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
     logSearchEvent(text, currentRegion, shopsCount);
   };
 
+  const handleShopSelect = (shop: CoffeeShop) => {
+    Keyboard.dismiss();
+    setSearchQuery(shop.name);
+    setIsFocused(false);
+    inputRef.current?.blur();
+    if (onSelectShop) {
+      onSelectShop(shop);
+    }
+  };
+
   const handleClear = () => {
     hapticLight();
     setSearchQuery('');
-    Keyboard.dismiss();
-    inputRef.current?.blur();
-    setIsFocused(false);
   };
 
   const handleCancel = () => {
@@ -77,14 +103,11 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
     setSearchQuery('');
   };
 
-  // Show dropdown immediately upon focusing (for history & trending) or while typing
-  const showSuggestions = isFocused;
-
   return (
     <View style={styles.container}>
       {/* Search Input Capsule */}
       <View style={[styles.inputWrapper, isFocused && styles.inputWrapperFocused]}>
-        <Feather name="search" size={15} color={COLORS.textMuted} style={styles.searchIcon} />
+        <Feather name="search" size={15} color={isFocused ? COLORS.primary : COLORS.textMuted} style={styles.searchIcon} />
 
         <TextInput
           ref={inputRef}
@@ -95,10 +118,6 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
           onChangeText={setSearchQuery}
           onSubmitEditing={handleSubmit}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => {
-            // Small delay so suggestion tap fires before blur hides the list
-            setTimeout(() => setIsFocused(false), 200);
-          }}
           returnKeyType="search"
           autoCorrect={false}
           autoCapitalize="none"
@@ -129,20 +148,19 @@ export const SearchBar: React.FC<Props> = ({ onAvatarPress }) => {
         /* User Avatar when idle */
         <TouchableOpacity style={styles.avatarBtn} onPress={onAvatarPress} activeOpacity={0.8}>
           <View style={styles.avatarInner}>
-            <Feather name="user" size={20} color={COLORS.textSecondary} />
+            <Feather name="user" size={19} color={COLORS.textSecondary} />
           </View>
         </TouchableOpacity>
       )}
 
-      {/* Live Autocomplete & History Suggestions Dropdown */}
-      {showSuggestions && (
-        <SearchSuggestions
-          query={searchQuery}
-          userLocation={userLocation}
-          onSelect={handleSuggestionSelect}
-          visible={showSuggestions}
-        />
-      )}
+      {/* Live Autocomplete, Search History & Trending Recommendations Dropdown */}
+      <SearchSuggestions
+        query={searchQuery}
+        userLocation={userLocation}
+        onSelect={handleSuggestionSelect}
+        onSelectShop={handleShopSelect}
+        visible={isFocused}
+      />
     </View>
   );
 };
@@ -154,7 +172,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     gap: SPACING.sm,
     width: '100%',
-    zIndex: 100,
+    zIndex: 9999,
   },
   inputWrapper: {
     flex: 1,
@@ -164,20 +182,20 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     paddingLeft: SPACING.sm,
     paddingRight: SPACING.sm,
-    height: 52,
+    height: 50,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     gap: SPACING.xs ?? 4,
-    overflow: 'visible',
-    zIndex: 100,
+    zIndex: 9999,
   },
   inputWrapperFocused: {
     borderColor: COLORS.primary,
+    backgroundColor: '#FFFFFF',
   },
   searchIcon: {
     marginLeft: 2,
@@ -211,9 +229,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
   },

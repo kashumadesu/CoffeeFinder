@@ -19,6 +19,7 @@ import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hapticLight } from '@utils/haptics';
 
 import { COLORS, SPACING, RADIUS, DEFAULT_REGION, DELTA, getPhotoUrl } from '@constants';
@@ -40,6 +41,7 @@ import type { CoffeeShop, RootStackParamList, MapTypeOption, NavigationRoute } f
 type Nav = StackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 export const MapScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -290,10 +292,13 @@ export const MapScreen: React.FC = () => {
 
       {/* Floating Minimalist Header (Search + Hub Switcher + Filters) — Hidden during active navigation */}
       {!activeNavigationShop && (
-        <View style={styles.headerOverlay}>
+        <View style={[styles.headerOverlay, { top: insets.top + (Platform.OS === 'android' ? 10 : 6) }]}>
           <View style={styles.topRow}>
             <View style={styles.searchWrapper}>
-              <SearchBar onAvatarPress={() => (nav as any).navigate('Profile')} />
+              <SearchBar
+                onAvatarPress={() => (nav as any).navigate('Profile')}
+                onSelectShop={handleShopPress}
+              />
             </View>
           </View>
 
@@ -324,7 +329,7 @@ export const MapScreen: React.FC = () => {
 
       {/* Offline Mode Indicator Pill */}
       {isOffline && (
-        <View style={styles.offlineBanner}>
+        <View style={[styles.offlineBanner, { top: insets.top + (Platform.OS === 'android' ? 125 : 120) }]}>
           <Feather name="wifi-off" size={12} color="#6E4822" />
           <Text style={styles.offlineText}>Offline Mode (Cached Hub)</Text>
         </View>
@@ -333,7 +338,11 @@ export const MapScreen: React.FC = () => {
       {/* Floating GCash-accepted Filter Badge (Bottom Left) */}
       {!activeNavigationShop && (
         <TouchableOpacity
-          style={[styles.gcashFloatingPill, gcashOnly && styles.gcashFloatingPillActive]}
+          style={[
+            styles.gcashFloatingPill,
+            gcashOnly && styles.gcashFloatingPillActive,
+            { bottom: insets.bottom > 0 ? insets.bottom + 80 : 85 },
+          ]}
           onPress={() => {
             hapticLight();
             toggleGcashOnly();
@@ -347,11 +356,11 @@ export const MapScreen: React.FC = () => {
         </TouchableOpacity>
       )}
 
-      {/* Floating Controls (Map Layer + GPS on Bottom Right) */}
+      {/* Floating Controls (Map Layer + GPS on Upper Right, safe from Bottom Drawer) */}
       <View
         style={[
           styles.floatingControlsRight,
-          selectedShop && !activeNavigationShop && { bottom: 220 },
+          { top: insets.top + (Platform.OS === 'android' ? 116 : 110) },
         ]}
       >
         <TouchableOpacity
@@ -561,10 +570,9 @@ const styles = StyleSheet.create({
   },
   headerOverlay: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 52 : 20,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 9999,
     gap: 4,
   },
   topRow: {
@@ -724,10 +732,9 @@ const styles = StyleSheet.create({
   },
   floatingControlsRight: {
     position: 'absolute',
-    bottom: 120,
     right: SPACING.md,
     gap: SPACING.sm,
-    zIndex: 9,
+    zIndex: 99,
   },
   controlCircleBtn: {
     backgroundColor: COLORS.surface,
