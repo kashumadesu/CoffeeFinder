@@ -177,7 +177,8 @@ export const DetailScreen: React.FC = () => {
               isVisited && { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' },
             ]}
             onPress={() => {
-              const nowVisited = toggleShopVisited(shop.id, shop.name, 'manila', shop.vicinity ?? 'Metro Manila');
+              const regionId = shop.regionId ?? 'manila';
+              const nowVisited = toggleShopVisited(shop.id, shop.name, regionId, shop.vicinity ?? shop.city ?? 'Philippines');
               if (nowVisited) {
                 hapticSuccess();
                 Alert.alert(

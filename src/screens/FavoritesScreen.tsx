@@ -94,6 +94,7 @@ const styles = StyleSheet.create({
     paddingLeft: 28,
   },
   listContent: {
+    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     paddingBottom: 90,
   },
